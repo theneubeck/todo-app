@@ -1,0 +1,72 @@
+.things__buckets {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.things__buckets button[aria-selected="true"] {
+  background: var(--text);
+  color: var(--surface);
+  border-color: var(--text);
+}
+
+.things > section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+}
+
+.things > section > h2 {
+  margin: 0 0 var(--space-4) 0;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+
+.things section section {
+  margin-top: var(--space-5);
+}
+
+.things h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 var(--space-3) 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.things [role="group"] {
+  margin: var(--space-3) 0 var(--space-4) 0;
+}
+
+.things h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 var(--space-2) 0;
+  color: var(--text);
+}
+
+.things li {
+  padding: var(--space-1) 0;
+}
+
+.things label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  cursor: pointer;
+}
+
+.things strong {
+  font-weight: 500;
+}
+
+.things ul ul {
+  margin-left: var(--space-4);
+  border-left: 2px solid var(--border);
+  padding-left: var(--space-3);
+  margin-top: var(--space-2);
+}

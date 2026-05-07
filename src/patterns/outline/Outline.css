@@ -1,0 +1,87 @@
+.outline {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-5);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 13px;
+}
+
+.outline__crumbs {
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px dashed var(--border);
+}
+
+.outline__tree, .outline ul[role="group"] {
+  list-style: none;
+  padding: 0;
+}
+
+.outline ul[role="group"] {
+  margin-left: var(--space-4);
+  border-left: 1px solid var(--border);
+  padding-left: var(--space-4);
+}
+
+.outline__node {
+  margin: 2px 0;
+}
+
+.outline__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px 0;
+}
+
+.outline__caret {
+  background: none;
+  border: none;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.outline__caret:hover {
+  background: none;
+  color: var(--accent);
+}
+
+.outline__bullet {
+  width: 16px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.outline__title {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.outline__title:hover {
+  background: none;
+  text-decoration: underline;
+}
+
+.outline label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.outline input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+}
