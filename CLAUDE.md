@@ -1,8 +1,8 @@
 # todoz — POC
 
-Build the todo UI POC described in `TODO-POC.md` using the stack in `TECH-POC.md`. Nothing else.
+Build the nested todo list described in `TECH-POC.md`. Nothing else.
 
-Read `AGENTS.md` before touching vault data. Read `TODO-POC.md` before adding a pattern. Read `TECH-POC.md` before touching any code.
+Read `AGENTS.md` before touching vault data. Read `TECH-POC.md` before touching any code.
 
 ---
 
@@ -16,9 +16,7 @@ plan  →  implement  →  verify
   └────── (if red) ───────┘
 ```
 
-Invoke the right sub-agent for the current phase using `/agent`:
-
-- Starting a new pattern or feature → `/agent plan`
+- Starting a new feature → `/agent plan`
 - Writing code → `/agent implement`
 - Checking results → `/agent verify`
 
@@ -34,11 +32,12 @@ Invoke the right sub-agent for the current phase using `/agent`:
 | Language | TypeScript |
 | UI | Vanilla TypeScript + DOM (no framework) |
 | DOM testing | `@expressen/tallahassee` |
+| Acceptance tests | `@cucumber/cucumber` (Gherkin `.feature` + step defs that reuse Tallahassee) |
 | Test runner | Mocha + Chai (BDD style) |
 | Frontmatter | `gray-matter` |
 | File watching | `chokidar` |
 | Ollama | `child_process.spawn` |
-| Visual verification | Playwright (`_electron`) + Claude vision API |
+| Visual verification | Playwright (`_electron`) screenshots, agent reads PNGs via Read tool |
 
 ---
 
@@ -48,53 +47,47 @@ Invoke the right sub-agent for the current phase using `/agent`:
 
 The loop is: write test → watch it fail → write minimal code → watch it pass → refactor.
 
-If you catch yourself writing a renderer function, IPC handler, or DOM builder without a failing Mocha test — stop. Delete it. Write the test first.
-
 ### BDD outside-in
 
-Start from the outermost layer the user sees. Write the Tallahassee acceptance test for the full pattern render first. Then work inward — write tests for `parseTodo`, `writeTodo`, IPC handlers — only as needed to make the outer test pass.
+Write the Tallahassee acceptance test for the full view first. Then work inward — write tests for `parseTodo`, `writeTodo` — only as needed to make the outer test pass.
 
 ### One behavior per test
 
-No "and" in test names. If a test needs two assertions for one behavior (element rendered AND has correct text), that is fine. If it asserts two independent behaviors, split it.
+No "and" in test names. One behavior per test.
 
 ### Green before moving on
 
-Never start the next pattern with a red bar. If stuck, that red test is the only thing being worked on.
+Never start the next feature with a red bar.
 
 ### Renderer process never imports Node modules
 
-`fs`, `path`, `child_process` are never imported in renderer files. All system access goes through `window.todoz.*` from the preload bridge. Tallahassee tests mock `window.todoz` with fixture data.
+`fs`, `path`, `child_process` are never imported in renderer files. All system access goes through `window.todoz.*`.
 
 ---
 
 ## Dos
 
-- Read the three key files before starting: `TECH-POC.md`, `TODO-POC.md`, `AGENTS.md`
+- Read `TECH-POC.md` and `AGENTS.md` before starting
 - Write fixture `.md` files in `test/fixtures/vault/todos/` that match the `AGENTS.md` schema exactly
 - Mock `window.todoz` in Tallahassee tests with realistic fixture data
 - Add `data-*` attributes to DOM elements so tests can query them without relying on CSS classes
 - Take a screenshot at the end of every implement session
 - Restore fixture files after toggle tests that mutate them
-- Note findings (capture speed, find-next, nesting) in `TODO-POC.md` after each pattern is verified
 
 ## Don'ts
 
 - Don't use React, Vue, or any UI framework
 - Don't import Node.js modules in renderer files
 - Don't write implementation and tests in the same edit
-- Don't start pattern N+1 until pattern N is verified green
-- Don't mutate fixture files without restoring them
-- Don't skip the verify step — Tallahassee green is necessary but not sufficient
-- Don't add features not described in `TODO-POC.md` or `TECH-POC.md`
+- Don't add features not described in `TECH-POC.md`
 
 ---
 
-## Definition of done (per pattern)
+## Definition of done
 
 - Lint and type check pass: `npm run verify:static`
 - All Mocha/Tallahassee tests pass at ≥90% coverage: `npm run test:coverage`
 - Playwright verify script passes: `npm run verify`
-- Vision assertion confirms the pattern renders correctly
+- Verify agent reads the captured screenshot PNGs via the Read tool and confirms each acceptance criterion visually
 - Toggle writes back to the fixture file and restores correctly
-- Findings noted in `TODO-POC.md` under that pattern
+- Findings noted in the "Verify findings" section of `TECH-POC.md`

@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Use after implement has declared "Implement complete. Ready for Verify." Runs lint, type check, coverage (90%), Playwright visual assertions via Claude vision API, and toggle write-back. Reports pass/fail with exact failure text. Never fixes bugs.
+description: Use after implement has declared "Implement complete. Ready for Verify." Runs lint, type check, coverage (90%), Playwright launches Electron and writes screenshots, agent reads PNGs via the Read tool to assert acceptance criteria, and toggle write-back. Reports pass/fail with exact failure text. Never fixes bugs.
 tools: Read, Bash, Glob, Grep
 ---
 
@@ -14,8 +14,8 @@ Confirm you have received **"Implement complete. Ready for Verify."** from the I
 
 Then read:
 
-- `TODO-POC.md` — the acceptance criteria for the pattern being verified
-- `TECH-POC.md` — the vision assertion helper and Playwright setup
+- `TECH-POC.md` — the acceptance criteria and what to verify
+- `TECH-POC.md` — the Playwright screenshot setup
 - `CLAUDE.md` — definition of done
 
 ---
@@ -134,6 +134,24 @@ If red: **do not proceed**. Report the failure to Implement with the exact test 
 
 ---
 
+## Step 2b — Run the Gherkin acceptance suite
+
+```bash
+npm run test:bdd
+```
+
+This runs the cucumber.js outer layer — `.feature` files in `test/features/` driven by step defs in `test/step_defs/` that reuse Tallahassee under the hood.
+
+Cucumber is **not yet a hard gate** in `verify:static`. Run it as an advisory check during verify and report the result alongside the other checks. If a Gherkin scenario is red while `npm test` is green, that is a signal the plan's outermost layer is not satisfied — return to Implement with the failing scenario name and step.
+
+If you need to run a single feature file:
+
+```bash
+npm run test:bdd -- test/features/<name>.feature
+```
+
+---
+
 ## Step 3 — Launch the app and take a screenshot
 
 Use Playwright with `_electron` to launch the real Electron app and capture a screenshot for every acceptance criterion that requires visual verification.
@@ -141,7 +159,6 @@ Use Playwright with `_electron` to launch the real Electron app and capture a sc
 ```ts
 // test/verify/<pattern>.verify.ts
 import { _electron as electron } from '@playwright/test'
-import { assertScreenshot } from '../vision'
 
 async function verify() {
   const app = await electron.launch({ args: ['.'] })
@@ -179,24 +196,11 @@ Add to `package.json`:
 
 ---
 
-## Step 4 — Send screenshots to Claude vision
+## Step 4 — Read screenshots and assert acceptance criteria
 
-For each screenshot, call `assertScreenshot` from `test/vision.ts` with the exact acceptance criterion from the plan as the assertion string.
+After Playwright writes the PNGs to `test/screenshots/`, open each one with the `Read` tool — it returns the image to you as a multimodal model. For every acceptance criterion in the plan, write down whether the screenshot satisfies it: pass or fail, with a one-sentence reason. Use the criterion text from the plan word-for-word; do not paraphrase.
 
-```ts
-const result = await assertScreenshot(
-  'test/screenshots/reminders-initial.png',
-  'Does this show a left sidebar with one row per tag and a badge count ' +
-  'of incomplete tasks, and a main area with tasks grouped by date?'
-)
-
-if (!result.pass) {
-  console.error('FAIL:', result.reason)
-  process.exit(1)
-}
-```
-
-The vision assertion string must come word-for-word from the plan's acceptance criteria. Do not paraphrase.
+Record each verdict in the findings table. Treat any criterion that the screenshot does not clearly satisfy as a failure and stop. No vision API, no `assertScreenshot` helper — you are the visual assertion.
 
 ---
 
@@ -226,7 +230,7 @@ fs.writeFileSync(fixturePath, before, 'utf-8') // always restore
 
 ## Step 6 — Report results
 
-Write a findings block in `TODO-POC.md` under the verified pattern:
+Write the findings block into the "Verify findings" section of `TECH-POC.md`:
 
 ```markdown
 ### Verify — <pattern name> — <date>
@@ -237,8 +241,9 @@ Write a findings block in `TODO-POC.md` under the verified pattern:
 | Type check (`npm run typecheck`) | ✅ / ❌ N errors |
 | Coverage (`npm run test:coverage`) | ✅ N% / ❌ below 90% — uncovered lines: |
 | `npm test` | ✅ / ❌ N failures |
-| Vision: initial render | ✅ / ❌ reason |
-| Vision: after toggle | ✅ / ❌ reason |
+| Gherkin (`npm run test:bdd`) | ✅ / ⚠️ N scenarios failing (advisory) |
+| Screenshot: initial render | ✅ / ❌ reason (read PNG via Read tool) |
+| Screenshot: after toggle | ✅ / ❌ reason (read PNG via Read tool) |
 | Toggle write-back | ✅ / ❌ |
 
 **Capture speed**: [How quickly can a user add a new task? Keyboard only? Mouse required?]
@@ -260,43 +265,12 @@ If any check fails, declare:
 
 > **Verify failed. Returning to Implement.**
 
-Then provide the exact failure: the test name and error, or the vision assertion string and reason returned by the Claude API. Do not suggest a fix — that is Implement's job.
+Then provide the exact failure: the test name and error, or the acceptance criterion that the screenshot did not satisfy and your one-sentence reason. Do not suggest a fix — that is Implement's job.
 
 ---
 
-## vision.ts reference
+## How the agent reads screenshots
 
-```ts
-// test/vision.ts
-import Anthropic from '@anthropic-ai/sdk'
-import fs from 'fs'
+After the verify script writes PNGs to `test/screenshots/`, call your `Read` tool with each absolute screenshot path. The image returns inline as a multimodal observation. Compare what you see against the plan's acceptance criteria, one criterion at a time, and record pass/fail with a short reason.
 
-const client = new Anthropic()
-
-export async function assertScreenshot(
-  screenshotPath: string,
-  assertion: string
-): Promise<{ pass: boolean; reason: string }> {
-  const image = fs.readFileSync(screenshotPath).toString('base64')
-
-  const response = await client.messages.create({
-    model: 'claude-opus-4-6',
-    max_tokens: 256,
-    messages: [{
-      role: 'user',
-      content: [
-        {
-          type: 'image',
-          source: { type: 'base64', media_type: 'image/png', data: image },
-        },
-        {
-          type: 'text',
-          text: `${assertion}\n\nReply with JSON only: {"pass": true/false, "reason": "one sentence"}`,
-        },
-      ],
-    }],
-  })
-
-  return JSON.parse((response.content[0] as { text: string }).text)
-}
-```
+No SDK, no API key, no helper module. The agent is the assertion.

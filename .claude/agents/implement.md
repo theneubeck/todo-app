@@ -21,18 +21,106 @@ Then read:
 
 ## The loop
 
-Work through the BDD test list one test at a time. For each test:
+Work outside-in, one Gherkin scenario at a time. For each scenario:
 
 ```
-1. Write the test — watch it fail
-2. Write the minimal code to make it pass — watch it pass
-3. Run the full test file — confirm no regressions
-4. Move to the next test
+1. Write the .feature scenario in test/features/<name>.feature — exact text from plan
+2. Write or extend step defs in test/step_defs/<name>.steps.ts — watch the scenario fail (red)
+3. Drop down a layer: write the next Tallahassee/unit test the step needs — watch it fail
+4. Write the minimal renderer/data code to turn that inner test green
+5. Re-run the full Gherkin scenario — if still red, repeat 3–4 for the next inner gap
+6. Once the scenario is green, move to the next scenario
 ```
 
-Never write implementation before a failing test exists. Never write the test and implementation in the same edit.
+Never write implementation before a failing test exists at some layer. Never write a test and its implementation in the same edit. The Gherkin scenario stays red until every step it relies on is implemented — that is expected and is the signal that drives inward work.
+
+Run the BDD layer with:
+
+```bash
+npm run test:bdd                         # full Gherkin suite
+npm run test:bdd -- test/features/x.feature   # one feature during development
+```
+
+Run the inner layers with `npm test` as before.
 
 ---
+
+## Setting up Gherkin scenarios + step defs
+
+The outermost layer. Each pattern owns one `.feature` file and one matching step-def file. Step defs reuse the same JSDOM + Tallahassee + mocked `window.todoz` setup as the Mocha specs — there is no second harness.
+
+`test/features/<name>.feature`:
+
+```gherkin
+Feature: Todo list initial render
+
+  Scenario: All tasks appear ordered by due date
+    Given the vault contains the standard fixture todos
+    When the todo list view loads
+    Then every task title appears in due-date order
+```
+
+`test/step_defs/<name>.steps.ts`:
+
+```ts
+import { Given, When, Then, setWorldConstructor } from '@cucumber/cucumber'
+import { JSDOM } from 'jsdom'
+import { Tallahassee } from '@expressen/tallahassee'
+import { expect } from 'chai'
+
+class TodozWorld {
+  fixtures: unknown[] = []
+  tallahassee!: Tallahassee
+}
+setWorldConstructor(TodozWorld)
+
+Given('the vault contains the standard fixture todos', function (this: TodozWorld) {
+  this.fixtures = [
+    {
+      path: 'test/fixtures/vault/todos/call-dentist-2026-05-04.md',
+      frontmatter: {
+        type: 'task',
+        title: 'Call dentist',
+        status: 'todo',
+        due: '2026-05-10',
+        tags: ['personal'],
+        created: '2026-05-04',
+      },
+      body: '- [ ] Book appointment\n- [ ] Check insurance coverage',
+    },
+    // ...other fixtures from the plan
+  ]
+})
+
+When('the todo list view loads', async function (this: TodozWorld) {
+  const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+    runScripts: 'dangerously',
+    resources: 'usable',
+  })
+  ;(dom.window as unknown as { todoz: unknown }).todoz = {
+    readTodos: async () => this.fixtures,
+    writeFile: async () => {},
+    runOllama: async () => '',
+  }
+  this.tallahassee = new Tallahassee(dom)
+  await this.tallahassee.open('src/renderer/index.ts')
+})
+
+Then('every task title appears in due-date order', function (this: TodozWorld) {
+  const titles = this.tallahassee
+    .querySelectorAll('[data-task-title]')
+    .map((el) => el.textContent?.trim())
+  expect(titles).to.deep.equal(['Call dentist', 'Q2 report', 'Read Anthropic paper'])
+})
+```
+
+**Rules for step defs:**
+
+- One step-def file per `.feature` file. Share helpers via `test/step_defs/world.ts` if multiple features need the same setup.
+- Step text matches the feature word-for-word — Cucumber binds by string.
+- The World instance is fresh per scenario; do not stash state on module-level variables.
+- Use `data-*` selectors for DOM assertions, same as Tallahassee specs.
+- If a toggle step mutates a fixture file on disk, restore it in an `After` hook.
 
 ## Setting up Tallahassee tests
 
@@ -180,10 +268,11 @@ If `npm test` is not yet defined in `package.json`, add:
 
 You may declare done when:
 
-- [ ] Every test in the plan's BDD test list exists and passes
-- [ ] `npm test` exits 0 with no skipped or `.only` tests
+- [ ] Every Gherkin scenario from the plan exists in `test/features/` and passes via `npm run test:bdd`
+- [ ] Every test in the plan's BDD test list exists and passes via `npm test`
+- [ ] `npm test` and `npm run test:bdd` both exit 0 with no skipped or `.only` tests
 - [ ] No renderer file imports a Node.js module
-- [ ] All fixture files used by toggle tests are restored in `after()` hooks
+- [ ] All fixture files used by toggle steps are restored in `After` hooks (cucumber) or `after()` hooks (mocha)
 
 When all items are checked, write:
 
