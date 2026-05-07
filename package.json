@@ -1,0 +1,57 @@
+{
+  "name": "todoz",
+  "version": "0.0.1",
+  "description": "todoz — POC nested todo list",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node build.js",
+    "start": "npm run build && electron .",
+    "test": "mocha --require ts-node/register 'test/**/*.spec.ts'",
+    "test:bdd": "cucumber-js",
+    "test:coverage": "nyc --reporter=text --reporter=json-summary mocha --require ts-node/register 'test/**/*.spec.ts'",
+    "lint": "eslint 'src/**/*.ts' 'test/**/*.ts' --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "verify:static": "npm run lint && npm run typecheck && npm run test:coverage",
+    "verify": "npm run verify:static && npm run build && ts-node test/verify/todoList.verify.ts"
+  },
+  "nyc": {
+    "branches": 90,
+    "lines": 90,
+    "functions": 90,
+    "statements": 90,
+    "include": [
+      "src/**/*.ts"
+    ],
+    "exclude": [
+      "src/main.ts",
+      "src/preload.ts"
+    ],
+    "extension": [
+      ".ts"
+    ],
+    "check-coverage": true
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^12.8.2",
+    "@playwright/test": "^1.59.1",
+    "@types/chai": "^4.3.11",
+    "@types/jsdom": "^21.1.6",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^6.18.0",
+    "@typescript-eslint/parser": "^6.18.0",
+    "chai": "^4.4.0",
+    "electron": "^28.1.3",
+    "esbuild": "^0.28.0",
+    "eslint": "^8.56.0",
+    "jsdom": "^24.0.0",
+    "mocha": "^10.2.0",
+    "nyc": "^15.1.0",
+    "playwright": "^1.59.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3"
+  }
+}
