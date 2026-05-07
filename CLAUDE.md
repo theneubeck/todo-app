@@ -20,7 +20,28 @@ plan  →  implement  →  verify
 - Writing code → `/agent implement`
 - Checking results → `/agent verify`
 
-**Gate rule**: `implement` does not start without a written plan ending in **"Plan complete. Ready for Implement."** `verify` does not start until `implement` declares **"Implement complete. Ready for Verify."** If `verify` fails, return to `implement` with the specific failure — do not re-plan unless the approach is fundamentally wrong.
+**Gate rule**: `implement` does not start without a frozen plan ending in **"Plan complete. Ready for Implement."** `verify` does not start until `implement` declares **"Implement complete. Ready for Verify."** If `verify` fails, return to `implement` with the specific failure — do not re-plan unless the approach is fundamentally wrong.
+
+### Per-feature artifact layout
+
+Plan writes the contract to `features/<slug>/`. This is the single source of truth for one feature; Cucumber loads `.feature` files from here.
+
+```
+features/<slug>/
+  plan.md          ← frozen (frontmatter `frozen: true`)
+  <slug>.feature   ← frozen (Cucumber loads via cucumber.js paths)
+  notes.md         ← mutable scratchpad — Problems + Verify findings
+```
+
+Fixtures still live in `test/fixtures/vault/todos/` per `AGENTS.md` schema.
+
+### Frozen-artifact rule
+
+`plan.md` and `<slug>.feature` are **frozen**. Implement and Verify must not edit them.
+
+- If a plan/feature turns out to be wrong, the agent appends a `## Problem` block to `features/<slug>/notes.md`, stops, and declares **"Plan problem detected. Returning to Plan agent."**
+- The user re-runs `/agent plan` to thaw, revise, and re-freeze. Implement and Verify never edit the contract themselves.
+- Verify findings go into `notes.md` under `## Verify findings` (and mirror to the `TECH-POC.md` Verify section).
 
 ---
 
