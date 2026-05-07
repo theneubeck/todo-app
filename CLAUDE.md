@@ -1,128 +1,100 @@
-# todoz — TODO UI POC
+# todoz — POC
 
-Scope: build the POC described in `TODO-POC.md`. Nothing else. Ignore `PLAN.md` phases until the POC picks a winner.
+Build the todo UI POC described in `TODO-POC.md` using the stack in `TECH-POC.md`. Nothing else.
 
-Read `AGENTS.md` before touching vault data. Read `TODO-POC.md` before adding a pattern.
+Read `AGENTS.md` before touching vault data. Read `TODO-POC.md` before adding a pattern. Read `TECH-POC.md` before touching any code.
+
+---
+
+## Three-agent workflow
+
+Every task moves through three agents in order. Do not skip steps.
+
+```
+plan  →  implement  →  verify
+  ↑                       |
+  └────── (if red) ───────┘
+```
+
+Invoke the right sub-agent for the current phase using `/agent`:
+
+- Starting a new pattern or feature → `/agent plan`
+- Writing code → `/agent implement`
+- Checking results → `/agent verify`
+
+**Gate rule**: `implement` does not start without a written plan ending in **"Plan complete. Ready for Implement."** `verify` does not start until `implement` declares **"Implement complete. Ready for Verify."** If `verify` fails, return to `implement` with the specific failure — do not re-plan unless the approach is fundamentally wrong.
+
+---
+
+## Stack
+
+| Concern | Choice |
+|---|---|
+| Desktop shell | Electron |
+| Language | TypeScript |
+| UI | Vanilla TypeScript + DOM (no framework) |
+| DOM testing | `@expressen/tallahassee` |
+| Test runner | Mocha + Chai (BDD style) |
+| Frontmatter | `gray-matter` |
+| File watching | `chokidar` |
+| Ollama | `child_process.spawn` |
+| Visual verification | Playwright (`_electron`) + Claude vision API |
 
 ---
 
 ## Hard rules
 
-### 1. Test-first. Always.
+### Never write implementation before a failing test exists
 
-No production code is written before a failing test exists for it.
+The loop is: write test → watch it fail → write minimal code → watch it pass → refactor.
 
-The loop is **red → green → refactor**, every time:
+If you catch yourself writing a renderer function, IPC handler, or DOM builder without a failing Mocha test — stop. Delete it. Write the test first.
 
-1. Write a test that describes the next behavior.
-2. Run it. Confirm it fails for the expected reason (not a typo, not a missing import).
-3. Write the smallest code that makes it pass.
-4. Run the full test file. Confirm green.
-5. Refactor only with tests green.
+### BDD outside-in
 
-If you catch yourself writing a component, hook, or parser without a failing test on screen — stop, delete it, write the test first.
+Start from the outermost layer the user sees. Write the Tallahassee acceptance test for the full pattern render first. Then work inward — write tests for `parseTodo`, `writeTodo`, IPC handlers — only as needed to make the outer test pass.
 
-**Never** write the implementation and the test in the same edit. The test lands first, in its own commit-sized change, and is observed failing before the implementation exists.
+### One behavior per test
 
-### 2. One behavior per test
+No "and" in test names. If a test needs two assertions for one behavior (element rendered AND has correct text), that is fine. If it asserts two independent behaviors, split it.
 
-Each test asserts one behavior. No "and" in test names. If the test needs two assertions to describe one behavior (e.g. element rendered AND has correct text), that is one behavior — fine. If it asserts two independent behaviors, split it.
+### Green before moving on
 
-### 3. Test the contract, not the implementation
+Never start the next pattern with a red bar. If stuck, that red test is the only thing being worked on.
 
-Tests describe what the user (or the calling code) sees. They do not assert on internal state, private functions, or DOM structure beyond what is user-visible. Component tests use React Testing Library queries by role/label/text — never by class name or test id unless there is no other way.
+### Renderer process never imports Node modules
 
-### 4. No mocking the file system in unit tests
-
-The data layer reads markdown files. Unit tests for the data layer use real fixture files in `test/fixtures/vault/`. Mocking `fs` hides parser bugs. Component tests mock the data layer (the parser is already covered by its own tests).
-
-### 5. Green bar before moving on
-
-Never start the next test, the next pattern, or the next refactor with a red bar. If a test is red and you're stuck, that is the only thing being worked on.
-
-### 6. Tests run in CI-equivalent locally
-
-`npm test` runs the full suite headless, exits non-zero on failure, and is what defines "done." A pattern is not complete until `npm test` passes with the new tests included.
+`fs`, `path`, `child_process` are never imported in renderer files. All system access goes through `window.todoz.*` from the preload bridge. Tallahassee tests mock `window.todoz` with fixture data.
 
 ---
 
-## POC structure
+## Dos
 
-```
-src/
-  data/                shared data layer (read vault/todos/*.md → Task[])
-    parseTodo.ts
-    parseTodo.test.ts
-    loadTodos.ts
-    loadTodos.test.ts
-  patterns/
-    reminders/         pattern 1 — flat grouped list
-      Reminders.tsx
-      Reminders.test.tsx
-    things/            pattern 2 — areas → projects → tasks
-    todoist/           pattern 3 — priorities + NLP
-    acunote/           pattern 4 — sprint + burndown
-    outline/           pattern 5 — node tree
-    linear/            pattern 6 — status columns
-  App.tsx              pattern picker, no logic
-test/
-  fixtures/
-    vault/
-      todos/           hand-written .md files for tests
-```
+- Read the three key files before starting: `TECH-POC.md`, `TODO-POC.md`, `AGENTS.md`
+- Write fixture `.md` files in `test/fixtures/vault/todos/` that match the `AGENTS.md` schema exactly
+- Mock `window.todoz` in Tallahassee tests with realistic fixture data
+- Add `data-*` attributes to DOM elements so tests can query them without relying on CSS classes
+- Take a screenshot at the end of every implement session
+- Restore fixture files after toggle tests that mutate them
+- Note findings (capture speed, find-next, nesting) in `TODO-POC.md` after each pattern is verified
 
-The shared data layer is built once, test-first. Each pattern reuses it. Patterns differ only in presentation and interaction — never in how data is loaded or written back.
+## Don'ts
 
----
-
-## Stack (proposed — confirm before scaffolding)
-
-| Concern | Choice | Reason |
-|---|---|---|
-| Build | Vite | fastest React dev loop |
-| Language | TypeScript | catches schema drift in Task type |
-| Test runner | Vitest | same config as Vite, jsdom built-in |
-| Component tests | React Testing Library | role-based queries match rule #3 |
-| User events | `@testing-library/user-event` | realistic input simulation |
-| Frontmatter | `gray-matter` | already named in PLAN.md |
-
-No Tauri yet. POC runs in browser via Vite dev server, reading fixture files bundled at build time or via a small dev-only fetch endpoint. Tauri integration happens after a winning pattern is picked.
-
----
-
-## Build sequence
-
-Follow `TODO-POC.md` order. Do not start pattern N+1 until pattern N renders fixture data, handles toggle, and has tests green.
-
-For each pattern:
-
-1. Write the test list (a comment block in the spec file with the behaviors to cover).
-2. Pick the first behavior. Write the test. Watch it fail.
-3. Implement. Watch it pass.
-4. Repeat for each behavior in the list.
-5. Manual smoke check in the browser only after the spec is fully green.
-
-The data layer is built before pattern 1, in the same test-first loop, against fixture files that match the AGENTS.md schema.
+- Don't use React, Vue, or any UI framework
+- Don't import Node.js modules in renderer files
+- Don't write implementation and tests in the same edit
+- Don't start pattern N+1 until pattern N is verified green
+- Don't mutate fixture files without restoring them
+- Don't skip the verify step — Tallahassee green is necessary but not sufficient
+- Don't add features not described in `TODO-POC.md` or `TECH-POC.md`
 
 ---
 
 ## Definition of done (per pattern)
 
-- All behaviors in the test list have passing tests.
-- `npm test` passes with no skipped or `.only` tests.
-- The pattern reads from the shared data layer, not its own parser.
-- Toggling a task writes back to the source markdown file (or, in tests, the in-memory equivalent).
-- A note in `TODO-POC.md` under that pattern: capture speed, find-next clarity, nesting handling.
-
----
-
-## Out of scope for the POC
-
-- Tauri shell, fs watching, real Google Drive sync
-- Bookmarks, goals, notes views
-- Editor (CodeMirror)
-- AI layer, embeddings, semantic search
-- Browser extension
-- Styling beyond what is needed to evaluate the interaction
-
-If a pattern needs one of these to be evaluable, stub it with the smallest possible fake and note the gap in `TODO-POC.md`.
+- Lint and type check pass: `npm run verify:static`
+- All Mocha/Tallahassee tests pass at ≥90% coverage: `npm run test:coverage`
+- Playwright verify script passes: `npm run verify`
+- Vision assertion confirms the pattern renders correctly
+- Toggle writes back to the fixture file and restores correctly
+- Findings noted in `TODO-POC.md` under that pattern
