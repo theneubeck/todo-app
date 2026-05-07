@@ -1,0 +1,10 @@
+node_modules/
+dist/
+test/screenshots/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+.git/
+first-poc/
