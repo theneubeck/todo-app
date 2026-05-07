@@ -1,10 +1,10 @@
 ---
 type: task
 title: "Call dentist"
-status: todo
+status: done
 due: 2026-05-10
 tags: [personal]
 created: 2026-05-04
 ---
-- [ ] Book appointment
+- [x] Book appointment
 - [x] Check insurance coverage

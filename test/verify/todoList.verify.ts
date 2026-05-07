@@ -89,6 +89,11 @@ async function run(): Promise<void> {
 
     await window.reload()
     await window.waitForSelector('[data-view="todo-list"]', { timeout: 10_000 })
+    await window.waitForSelector('[data-task="q2-report"]', { timeout: 5_000 })
+
+    // The q2-report row is collapsed by default; click the chevron area to expand
+    // before clicking the subtask checkbox.
+    await window.click('[data-task="q2-report"] [data-task-row] [data-chevron]')
     await window.waitForSelector('[data-task="q2-report"] [data-subtask="1"]', { timeout: 5_000 })
 
     await window.click('[data-task="q2-report"] [data-subtask="1"] input[type="checkbox"]')

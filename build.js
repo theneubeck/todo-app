@@ -18,8 +18,8 @@ const RENDERER_BOOT = `
   function boot() {
     try {
       var ns = (typeof todozRenderer !== 'undefined') ? todozRenderer : null;
-      var fn = (ns && typeof ns.mountTodoList === 'function') ? ns.mountTodoList : null;
-      if (!fn) { console.error('[todoz] mountTodoList not exported'); return; }
+      var fn = (ns && typeof ns.mountApp === 'function') ? ns.mountApp : null;
+      if (!fn) { console.error('[todoz] mountApp not exported'); return; }
       fn(document.body).catch(function (e) { console.error('[todoz] mount failed', e); });
     } catch (e) { console.error('[todoz] boot failed', e); }
   }
