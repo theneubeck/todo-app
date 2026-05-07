@@ -1,22 +1,25 @@
 # todoz — POC
 
-Build the nested todo list described in `TECH-POC.md`. Nothing else.
-
-Read `AGENTS.md` before touching vault data. Read `TECH-POC.md` before touching any code.
+Build the nested todo list. Visual spec in `DESIGN.md`. Vault schema in `vault/AGENTS.md`. Read both before touching code or vault data.
 
 ---
 
-## Three-agent workflow
+## Workflow
 
-Every task moves through three agents in order. Do not skip steps.
+Every feature flows: requirements → plan → implement → verify. Do not skip steps.
 
 ```
-plan  →  implement  →  verify
-  ↑                       |
-  └────── (if red) ───────┘
+[/plan skill OR hand-written requirements]
+              ↓
+        features/<slug>/
+              ↓
+   plan  →  implement  →  verify
+     ↑                       |
+     └──────── (if red) ─────┘
 ```
 
-- Starting a new feature → `/agent plan`
+- Seeding a feature → `/plan` (interactive interview skill) **or** drop requirements + assets into `features/<slug>/` by hand
+- Analyzing & freezing the plan → `/agent plan`
 - Writing code → `/agent implement`
 - Checking results → `/agent verify`
 
@@ -24,24 +27,27 @@ plan  →  implement  →  verify
 
 ### Per-feature artifact layout
 
-Plan writes the contract to `features/<slug>/`. This is the single source of truth for one feature; Cucumber loads `.feature` files from here.
+`features/<slug>/` holds the plan and reference assets. The `.feature` file lives in the test tree alongside step defs and pattern specs.
 
 ```
 features/<slug>/
   plan.md          ← frozen (frontmatter `frozen: true`)
-  <slug>.feature   ← frozen (Cucumber loads via cucumber.js paths)
   notes.md         ← mutable scratchpad — Problems + Verify findings
+  *.png, *.html    ← reference assets (mockups, design HTML) — optional
+
+test/features/
+  <slug>.feature   ← frozen (Cucumber loads from test/features/**/*.feature)
 ```
 
-Fixtures still live in `test/fixtures/vault/todos/` per `AGENTS.md` schema.
+The plan agent moves the `.feature` file into `test/features/` when freezing the plan. Fixtures live in `test/fixtures/vault/todos/` per `vault/AGENTS.md` schema.
 
 ### Frozen-artifact rule
 
-`plan.md` and `<slug>.feature` are **frozen**. Implement and Verify must not edit them.
+`features/<slug>/plan.md` and `test/features/<slug>.feature` are **frozen**. Implement and Verify must not edit them. The plan agent itself may thaw and refreeze them; only implement and verify are restricted.
 
-- If a plan/feature turns out to be wrong, the agent appends a `## Problem` block to `features/<slug>/notes.md`, stops, and declares **"Plan problem detected. Returning to Plan agent."**
-- The user re-runs `/agent plan` to thaw, revise, and re-freeze. Implement and Verify never edit the contract themselves.
-- Verify findings go into `notes.md` under `## Verify findings` (and mirror to the `TECH-POC.md` Verify section).
+- If a plan/feature turns out to be wrong, implement or verify appends a `## Problem` block to `features/<slug>/notes.md`, stops, and declares **"Plan problem detected. Returning to Plan agent."**
+- The user re-runs `/agent plan` to revise and re-freeze.
+- Verify findings go into `notes.md` under `## Verify findings`.
 
 ---
 
@@ -88,8 +94,8 @@ Never start the next feature with a red bar.
 
 ## Dos
 
-- Read `TECH-POC.md` and `AGENTS.md` before starting
-- Write fixture `.md` files in `test/fixtures/vault/todos/` that match the `AGENTS.md` schema exactly
+- Read `DESIGN.md` and `vault/AGENTS.md` before starting
+- Write fixture `.md` files in `test/fixtures/vault/todos/` that match the `vault/AGENTS.md` schema exactly
 - Mock `window.todoz` in Tallahassee tests with realistic fixture data
 - Add `data-*` attributes to DOM elements so tests can query them without relying on CSS classes
 - Take a screenshot at the end of every implement session
@@ -100,7 +106,6 @@ Never start the next feature with a red bar.
 - Don't use React, Vue, or any UI framework
 - Don't import Node.js modules in renderer files
 - Don't write implementation and tests in the same edit
-- Don't add features not described in `TECH-POC.md`
 
 ---
 
@@ -111,4 +116,4 @@ Never start the next feature with a red bar.
 - Playwright verify script passes: `npm run verify`
 - Verify agent reads the captured screenshot PNGs via the Read tool and confirms each acceptance criterion visually
 - Toggle writes back to the fixture file and restores correctly
-- Findings noted in the "Verify findings" section of `TECH-POC.md`
+- Findings noted in `features/<slug>/notes.md` under `## Verify findings`

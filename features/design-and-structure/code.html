@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TaskStream - Active Tasks</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary": "#505f76",
+                        "surface-container-high": "#e6e8ea",
+                        "surface-bright": "#f7f9fb",
+                        "background": "#f7f9fb",
+                        "outline-variant": "#cfc4c5",
+                        "inverse-on-surface": "#eff1f3",
+                        "on-surface-variant": "#4c4546",
+                        "on-primary-container": "#848484",
+                        "primary": "#000000",
+                        "surface-container-low": "#f2f4f6",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "tertiary-fixed": "#e2e2e2",
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "surface-container-highest": "#e0e3e5",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#5e5e5e",
+                        "inverse-primary": "#c6c6c6",
+                        "on-primary-fixed-variant": "#474747",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed": "#1b1b1b",
+                        "primary-container": "#1b1b1b",
+                        "on-primary": "#ffffff",
+                        "secondary-container": "#d0e1fb",
+                        "surface-dim": "#d8dadc",
+                        "secondary-fixed": "#d3e4fe",
+                        "inverse-surface": "#2d3133",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-secondary-container": "#54647a",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "on-secondary-fixed": "#0b1c30",
+                        "surface-variant": "#e0e3e5",
+                        "tertiary-fixed-dim": "#c6c6c6",
+                        "on-background": "#191c1e",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-container": "#848484",
+                        "primary-fixed": "#e2e2e2",
+                        "outline": "#7e7576",
+                        "on-surface": "#191c1e",
+                        "tertiary": "#000000",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "surface-container": "#eceef0",
+                        "surface": "#f7f9fb",
+                        "on-primary-fixed": "#1b1b1b",
+                        "tertiary-container": "#1b1b1b",
+                        "on-tertiary-fixed-variant": "#474747"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "md": "16px",
+                        "base": "4px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "container-max": "768px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "mono-label": ["monospace"],
+                        "body-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "h1": ["Inter"],
+                        "h2": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "mono-label": ["12px", { "lineHeight": "1", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "h1": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "h2": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: theme('colors.background'); color: theme('colors.on-surface'); font-family: theme('fontFamily.body-md'); }
+        .task-row:hover .task-actions { opacity: 1; }
+        .checkbox-custom:checked + label { text-decoration: line-through; color: theme('colors.on-surface-variant'); }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+<!-- TopAppBar -->
+<header class="bg-surface border-b border-outline-variant flex justify-between items-center w-full px-lg h-16 max-w-[1024px] mx-auto docked full-width top-0 z-40 hidden md:flex">
+<div class="flex items-center gap-md">
+<span class="font-h2 text-h2 font-semibold text-primary">TaskStream</span>
+</div>
+<div class="flex items-center gap-md">
+<button class="text-on-surface hover:bg-surface-container-low p-sm rounded transition-colors duration-200 flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+<button class="text-on-surface hover:bg-surface-container-low p-sm rounded transition-colors duration-200 flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-surface-variant overflow-hidden ml-sm">
+<!-- Fallback avatar if no image -->
+<span class="material-symbols-outlined flex items-center justify-center h-full w-full text-on-surface-variant" data-icon="person">person</span>
+</div>
+</div>
+</header>
+<div class="flex flex-1 w-full max-w-[1024px] mx-auto pt-lg px-lg pb-xl gap-xl relative">
+<!-- Left Sidebar: Navigation -->
+<aside class="hidden md:flex w-64 flex-col gap-sm shrink-0"><a class="flex items-center gap-md px-md py-sm rounded hover:bg-surface-container-low text-on-surface transition-colors" href="#"><span class="material-symbols-outlined text-[20px]" data-icon="chat_bubble">chat_bubble</span><span class="font-label-md text-label-md">Chat</span></a>
+<a class="flex items-center gap-md px-md py-sm rounded hover:bg-surface-container-low text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="inbox">inbox</span>
+<span class="font-label-md text-label-md">Inbox</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded bg-surface-container-low text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="today">today</span>
+<span class="font-label-md text-label-md font-bold">Today</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded hover:bg-surface-container-low text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="calendar_month">calendar_month</span>
+<span class="font-label-md text-label-md">Upcoming</span>
+</a>
+<div class="mt-md">
+<h3 class="font-label-md text-label-md text-on-surface-variant font-semibold uppercase tracking-wider px-md mb-sm">Projects</h3>
+<a class="flex items-center gap-md px-md py-sm rounded hover:bg-surface-container-low text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px] text-on-surface-variant" data-icon="tag">tag</span>
+<span class="font-label-md text-label-md">Design System</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded hover:bg-surface-container-low text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px] text-on-surface-variant" data-icon="tag">tag</span>
+<span class="font-label-md text-label-md">Frontend Architecture</span>
+</a>
+</div><div class="mt-md">
+<h3 class="font-label-md text-label-md text-on-surface-variant font-semibold uppercase tracking-wider px-md mb-sm">People</h3>
+<a class="flex items-center gap-md px-md py-sm rounded hover:bg-surface-container-low text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px] text-on-surface-variant" data-icon="alternate_email">alternate_email</span>
+<span class="font-label-md text-label-md">@name</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded hover:bg-surface-container-low text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px] text-on-surface-variant" data-icon="alternate_email">alternate_email</span>
+<span class="font-label-md text-label-md">@someothername</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area: Task List -->
+<main class="flex-1 flex flex-col gap-lg pb-24 md:pb-0 min-w-0">
+<!-- Header -->
+<div class="flex justify-between items-end border-b border-outline-variant pb-sm mb-sm">
+<div>
+<h1 class="font-h1 text-h1 text-primary mb-xs">Today</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">5 tasks remaining</p>
+</div>
+</div>
+<!-- Command Bar -->
+<!-- Task List -->
+<div class="flex flex-col border border-outline-variant rounded bg-surface-container-lowest">
+<!-- Task Group: High Priority -->
+<h3 class="font-label-md text-label-md text-on-surface-variant font-semibold uppercase tracking-wider px-md mb-sm mt-md">High Priority</h3>
+<!-- Task Row 1 (Expanded) -->
+<div class="task-row flex flex-col border-b border-surface-container-highest last:border-b-0 bg-surface-bright">
+<div class="flex items-center px-md py-sm hover:bg-surface-container-low transition-colors group cursor-pointer rounded">
+<span class="material-symbols-outlined text-on-surface-variant mr-sm text-[20px]" data-icon="keyboard_arrow_down">keyboard_arrow_down</span>
+<div class="relative flex items-center justify-center w-[18px] h-[18px] mr-md">
+<input class="checkbox-custom absolute w-full h-full opacity-0 cursor-pointer z-10 peer" id="task1" type="checkbox"/>
+<div class="w-full h-full border border-outline-variant rounded bg-surface peer-checked:bg-primary peer-checked:border-primary flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-on-primary text-[14px] opacity-0 peer-checked:opacity-100" data-icon="check">check</span>
+</div>
+</div>
+<label class="flex-1 font-body-md text-body-md text-on-surface cursor-pointer select-none" for="task1">Implement new dashboard visualization</label>
+<div class="flex items-center gap-sm">
+<span class="bg-error-container text-on-error-container px-xs py-base rounded font-label-md text-label-md">High</span>
+</div>
+</div>
+<!-- Subtasks -->
+<div class="pl-[64px] pr-md pb-sm flex flex-col gap-base border-l-2 border-surface-container-highest ml-[26px]">
+<div class="flex items-center py-xs group hover:bg-surface-container-low rounded px-xs transition-colors">
+<div class="relative flex items-center justify-center w-[16px] h-[16px] mr-sm">
+<input checked="" class="checkbox-custom absolute w-full h-full opacity-0 cursor-pointer z-10 peer" id="sub1-1" type="checkbox"/>
+<div class="w-full h-full border border-outline-variant rounded-[3px] bg-surface peer-checked:bg-on-surface-variant peer-checked:border-on-surface-variant flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-surface text-[12px] opacity-0 peer-checked:opacity-100" data-icon="check">check</span>
+</div>
+</div>
+<label class="flex-1 font-body-md text-body-md text-on-surface-variant line-through cursor-pointer text-[13px]" for="sub1-1">D3.js integration setup</label>
+</div>
+<div class="flex items-center py-xs group hover:bg-surface-container-low rounded px-xs transition-colors">
+<div class="relative flex items-center justify-center w-[16px] h-[16px] mr-sm">
+<input class="checkbox-custom absolute w-full h-full opacity-0 cursor-pointer z-10 peer" id="sub1-2" type="checkbox"/>
+<div class="w-full h-full border border-outline-variant rounded-[3px] bg-surface peer-checked:bg-on-surface-variant peer-checked:border-on-surface-variant flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-surface text-[12px] opacity-0 peer-checked:opacity-100" data-icon="check">check</span>
+</div>
+</div>
+<label class="flex-1 font-body-md text-body-md text-on-surface cursor-pointer text-[13px]" for="sub1-2">Map analytics data to chart axes</label>
+<span class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 text-[16px] cursor-pointer" data-icon="edit">edit</span>
+</div>
+<div class="flex items-center py-xs group hover:bg-surface-container-low rounded px-xs transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant mr-sm text-[16px]" data-icon="add">add</span>
+<span class="font-body-md text-body-md text-on-surface-variant text-[13px] cursor-pointer">Add subtask</span>
+</div>
+</div>
+</div>
+<!-- Task Row 2 -->
+<div class="task-row flex flex-col border-b border-surface-container-highest last:border-b-0 bg-surface-container-lowest">
+<div class="flex items-center px-md py-sm hover:bg-surface-container-low transition-colors group cursor-pointer rounded">
+<span class="material-symbols-outlined text-on-surface-variant mr-sm text-[20px] opacity-50" data-icon="keyboard_arrow_right">keyboard_arrow_right</span>
+<div class="relative flex items-center justify-center w-[18px] h-[18px] mr-md">
+<input class="checkbox-custom absolute w-full h-full opacity-0 cursor-pointer z-10 peer" id="task2" type="checkbox"/>
+<div class="w-full h-full border border-outline-variant rounded bg-surface peer-checked:bg-primary peer-checked:border-primary flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-on-primary text-[14px] opacity-0 peer-checked:opacity-100" data-icon="check">check</span>
+</div>
+</div>
+<label class="flex-1 font-body-md text-body-md text-on-surface cursor-pointer select-none" for="task2">Optimize database queries for task loading</label>
+<div class="flex items-center gap-sm">
+<span class="bg-secondary-container text-on-secondary-container px-xs py-base rounded font-label-md text-label-md">Backend</span>
+</div>
+</div>
+</div>
+<!-- Task Group: Other Tasks -->
+<h3 class="font-label-md text-label-md text-on-surface-variant font-semibold uppercase tracking-wider px-md mb-sm mt-lg">Other Tasks</h3>
+<!-- Task Row 3 -->
+<div class="task-row flex flex-col border-b border-surface-container-highest last:border-b-0 bg-surface-container-lowest">
+<div class="flex items-center px-md py-sm hover:bg-surface-container-low transition-colors group cursor-pointer rounded">
+<span class="material-symbols-outlined text-on-surface-variant mr-sm text-[20px] opacity-50" data-icon="keyboard_arrow_right">keyboard_arrow_right</span>
+<div class="relative flex items-center justify-center w-[18px] h-[18px] mr-md">
+<input class="checkbox-custom absolute w-full h-full opacity-0 cursor-pointer z-10 peer" id="task3" type="checkbox"/>
+<div class="w-full h-full border border-outline-variant rounded bg-surface peer-checked:bg-primary peer-checked:border-primary flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-on-primary text-[14px] opacity-0 peer-checked:opacity-100" data-icon="check">check</span>
+</div>
+</div>
+<label class="flex-1 font-body-md text-body-md text-on-surface cursor-pointer select-none" for="task3">Design System: Add specific focus states</label>
+<div class="flex items-center gap-sm">
+<span class="bg-surface-variant text-on-surface-variant px-xs py-base rounded font-label-md text-label-md border border-outline-variant">UI</span>
+</div>
+</div>
+</div>
+</div>
+<div class="fixed bottom-lg left-1/2 -translate-x-1/2 w-full max-w-[600px] px-lg z-50 md:relative md:bottom-0 md:left-0 md:translate-x-0 md:max-w-none md:mt-xl"><div class="bg-surface-container-lowest border border-primary/10 shadow-xl rounded-xl p-md flex items-center gap-md ring-2 ring-primary/5"><span class="material-symbols-outlined text-primary" data-icon="bolt">bolt</span><div class="flex-1 flex items-center gap-sm overflow-hidden"><span class="bg-secondary-container text-on-secondary-container px-xs py-base rounded font-label-md text-[11px] flex items-center gap-xs"><span class="material-symbols-outlined text-[12px]" data-icon="alternate_email">alternate_email</span>name</span><span class="bg-surface-variant text-on-surface-variant px-xs py-base rounded font-label-md text-[11px] flex items-center gap-xs border border-outline-variant"><span class="material-symbols-outlined text-[12px]" data-icon="tag">tag</span>design</span><input class="bg-transparent border-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder-on-surface-variant outline-none flex-1 min-w-[50px]" placeholder="Type a command or add a task..." type="text" value=""/></div><div class="flex items-center gap-base"><span class="font-mono-label text-mono-label border border-outline-variant rounded px-xs py-base text-on-surface-variant flex items-center gap-base bg-surface-container-low">CMD + K</span></div></div></div></main>
+</div>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-16 bg-surface border-t border-outline-variant md:hidden">
+<a class="flex flex-col items-center justify-center text-primary font-bold hover:opacity-80 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined mb-xs" data-icon="list_alt">list_alt</span>
+<span class="font-label-md text-label-md">Tasks</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:opacity-80 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined mb-xs" data-icon="search">search</span>
+<span class="font-label-md text-label-md">Search</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:opacity-80 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined mb-xs" data-icon="add_box">add_box</span>
+<span class="font-label-md text-label-md">Capture</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:opacity-80 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined mb-xs" data-icon="account_circle">account_circle</span>
+<span class="font-label-md text-label-md">Profile</span>
+</a>
+</nav>
+</body></html>
