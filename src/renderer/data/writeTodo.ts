@@ -71,6 +71,28 @@ export function toggleSubtask(raw: string, index: number): string {
   return `${fm}${newBody}`
 }
 
+export function addSubtask(raw: string, text: string): string {
+  const trimmed = text.trim()
+  if (trimmed.length === 0) return raw
+  const { fm, body } = splitFrontmatter(raw)
+  const lines = body.split(/\r?\n/)
+  let lastTopIdx = -1
+  for (let i = 0; i < lines.length; i += 1) {
+    if (classifyLine(lines[i]) === 'topCheckbox') lastTopIdx = i
+  }
+  const newLine = `- [ ] ${trimmed}`
+  if (lastTopIdx === -1) {
+    // No existing top-level bullets — produce a single-bullet body.
+    return `${fm}${newLine}\n`
+  }
+  const newLines = [
+    ...lines.slice(0, lastTopIdx + 1),
+    newLine,
+    ...lines.slice(lastTopIdx + 1),
+  ]
+  return `${fm}${newLines.join('\n')}`
+}
+
 export function removeSubtask(raw: string, index: number): string {
   const { fm, body } = splitFrontmatter(raw)
   const lines = body.split(/\r?\n/)

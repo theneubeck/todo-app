@@ -482,3 +482,108 @@ describe('AddTask', () => {
     expect(h1?.textContent?.trim()).to.equal('#errands')
   })
 })
+
+describe('AddTask affordance below the task card', () => {
+  let dom: JSDOM
+  let todoz: TodozMock
+
+  beforeEach(() => {
+    const setup = setupDom()
+    dom = setup.dom
+    todoz = setup.todoz
+  })
+
+  it('renders an add-task affordance after the task card on the inbox view', async () => {
+    await mountApp(dom.window.document.body)
+    const card = dom.window.document.querySelector('[data-task-card]')
+    const aff = dom.window.document.querySelector('[data-add-task]')
+    expect(card).to.not.equal(null)
+    expect(aff).to.not.equal(null)
+    expect(card!.compareDocumentPosition(aff!) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING).to.not.equal(0)
+  })
+
+  it('replaces the affordance with a focused input on click', async () => {
+    await mountApp(dom.window.document.body)
+    const aff = dom.window.document.querySelector('[data-add-task]') as HTMLElement
+    aff.click()
+    const input = dom.window.document.querySelector('[data-add-task-input]') as HTMLInputElement
+    expect(input).to.not.equal(null)
+    expect(dom.window.document.querySelector('[data-add-task]')).to.equal(null)
+    expect(dom.window.document.activeElement).to.equal(input)
+  })
+
+  it('writes a new task file on Enter with non-empty text', async () => {
+    await mountApp(dom.window.document.body)
+    ;(dom.window.document.querySelector('[data-add-task]') as HTMLElement).click()
+    const input = dom.window.document.querySelector('[data-add-task-input]') as HTMLInputElement
+    input.value = 'walk the dog'
+    input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter' }))
+    await tick(10)
+    expect(todoz.__writes.length).to.equal(1)
+    expect(todoz.__writes[0].filePath.endsWith('walk-the-dog-2026-05-07.md')).to.equal(true)
+    expect(todoz.__writes[0].content).to.contain('title: "walk the dog"')
+  })
+
+  it('does not write a file on Esc', async () => {
+    await mountApp(dom.window.document.body)
+    ;(dom.window.document.querySelector('[data-add-task]') as HTMLElement).click()
+    const input = dom.window.document.querySelector('[data-add-task-input]') as HTMLInputElement
+    input.value = 'should not write'
+    input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape' }))
+    await tick(10)
+    expect(todoz.__writes.length).to.equal(0)
+    expect(dom.window.document.querySelector('[data-add-task-input]')).to.equal(null)
+    expect(dom.window.document.querySelector('[data-add-task]')).to.not.equal(null)
+  })
+
+  it('does not write a file on whitespace-only Enter', async () => {
+    await mountApp(dom.window.document.body)
+    ;(dom.window.document.querySelector('[data-add-task]') as HTMLElement).click()
+    const input = dom.window.document.querySelector('[data-add-task-input]') as HTMLInputElement
+    input.value = '   '
+    input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter' }))
+    await tick(10)
+    expect(todoz.__writes.length).to.equal(0)
+    expect(dom.window.document.querySelector('[data-add-task-input]')).to.equal(null)
+    expect(dom.window.document.querySelector('[data-add-task]')).to.not.equal(null)
+  })
+
+  it('auto-tags the new task with the active filter when on a tag tab', async () => {
+    await mountApp(dom.window.document.body)
+    // Click the #errands tab
+    const entry = dom.window.document.querySelector(
+      '[data-sidebar-entry="errands"]'
+    ) as HTMLElement
+    entry.click()
+    await tick(5)
+    ;(dom.window.document.querySelector('[data-add-task]') as HTMLElement).click()
+    const input = dom.window.document.querySelector('[data-add-task-input]') as HTMLInputElement
+    input.value = 'pick up envelopes'
+    input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter' }))
+    await tick(10)
+    expect(todoz.__writes.length).to.equal(1)
+    expect(todoz.__writes[0].content).to.contain('tags: [errands]')
+  })
+
+  it('ignores other keys typed into the add-task input', async () => {
+    await mountApp(dom.window.document.body)
+    ;(dom.window.document.querySelector('[data-add-task]') as HTMLElement).click()
+    const input = dom.window.document.querySelector('[data-add-task-input]') as HTMLInputElement
+    input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'a' }))
+    await tick(5)
+    expect(todoz.__writes.length).to.equal(0)
+    expect(dom.window.document.querySelector('[data-add-task-input]')).to.not.equal(null)
+  })
+
+  it('appends the new task to the rendered list after a successful add', async () => {
+    await mountApp(dom.window.document.body)
+    const before = dom.window.document.querySelectorAll('[data-task]').length
+    ;(dom.window.document.querySelector('[data-add-task]') as HTMLElement).click()
+    const input = dom.window.document.querySelector('[data-add-task-input]') as HTMLInputElement
+    input.value = 'reorder coffee'
+    input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter' }))
+    await tick(10)
+    const after = dom.window.document.querySelectorAll('[data-task]').length
+    expect(after).to.equal(before + 1)
+  })
+})

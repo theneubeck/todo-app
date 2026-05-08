@@ -23,6 +23,7 @@
         --surface-variant: #e0e3e5;
         --on-surface: #191c1e;
         --on-surface-variant: #4c4546;
+        --outline: #7e7576;
         --outline-variant: #cfc4c5;
         --primary: #000000;
         --on-primary: #ffffff;
@@ -359,6 +360,15 @@
       [data-subtask]:hover {
         background: var(--surface-container-low);
       }
+      [data-subtask] [data-checkbox-wrapper] {
+        position: relative;
+        width: 16px;
+        height: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+      }
       [data-subtask] input[type='checkbox'] {
         width: 16px;
         height: 16px;
@@ -427,6 +437,64 @@
       [data-confirm-yes] {
         background: var(--error-container);
         color: var(--on-error-container);
+      }
+      /* Add subtask affordance + inline input */
+      [data-add-subtask] {
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: var(--outline);
+        padding: 4px;
+        cursor: pointer;
+        user-select: none;
+        align-self: flex-start;
+      }
+      [data-add-subtask]:hover {
+        color: var(--on-surface);
+      }
+      [data-task][data-kind='simple'] > [data-add-subtask] {
+        margin-left: 90px;
+        margin-bottom: 8px;
+      }
+      [data-add-subtask-input] {
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        padding: 4px 8px;
+        border: 1px solid var(--outline-variant);
+        border-radius: 4px;
+        background: var(--surface-container-lowest);
+        outline: none;
+        align-self: flex-start;
+      }
+      [data-task][data-kind='simple'] > [data-add-subtask-input] {
+        margin-left: 90px;
+        margin-bottom: 8px;
+      }
+      /* Add-task affordance below the bordered task card */
+      [data-add-task] {
+        display: inline-flex;
+        align-self: flex-start;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: var(--outline);
+        padding: 8px 0;
+        margin-top: 8px;
+        cursor: pointer;
+        user-select: none;
+      }
+      [data-add-task]:hover {
+        color: var(--on-surface);
+      }
+      [data-add-task-input] {
+        align-self: flex-start;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        padding: 8px 12px;
+        margin-top: 8px;
+        border: 1px solid var(--outline-variant);
+        border-radius: 4px;
+        background: var(--surface-container-lowest);
+        outline: none;
+        width: min(360px, 100%);
       }
       /* Command bar */
       [data-command-bar] {

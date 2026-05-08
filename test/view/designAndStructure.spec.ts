@@ -325,7 +325,7 @@ describe('DesignAndStructure', () => {
     expect(count?.textContent?.trim()).to.equal('1 task remaining')
   })
 
-  it('omits the HIGH PRIORITY group when no task has a due date', async () => {
+  it('renders a single TASKS heading regardless of due dates', async () => {
     const undated: Task[] = [
       {
         slug: 'a',
@@ -353,6 +353,6 @@ describe('DesignAndStructure', () => {
     const headings = Array.from(
       dom2.window.document.querySelectorAll('[data-group-heading]')
     ).map((el) => el.textContent?.trim())
-    expect(headings).to.deep.equal(['OTHER TASKS'])
+    expect(headings).to.deep.equal(['TASKS'])
   })
 })

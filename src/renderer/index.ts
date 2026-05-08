@@ -1,5 +1,10 @@
 import type { Task } from './data/parseTodo'
-import { toggleParent, toggleSubtask, removeSubtask } from './data/writeTodo'
+import {
+  toggleParent,
+  toggleSubtask,
+  removeSubtask,
+  addSubtask,
+} from './data/writeTodo'
 import { parseAddCommand } from './data/parseAddCommand'
 import { buildTaskFile } from './data/buildTaskFile'
 
@@ -242,7 +247,50 @@ type RenderContext = {
   onSubtaskToggle: (task: Task, subIndex: number) => Promise<void>
   onTopLevelRemove: (task: Task) => Promise<void>
   onSubtaskRemove: (task: Task, subIndex: number) => Promise<void>
+  onAddSubtaskSubmit: (task: Task, text: string) => Promise<void>
   closeAllConfirms: () => void
+}
+
+function renderAddSubtaskAffordance(
+  doc: Document,
+  task: Task,
+  ctx: RenderContext
+): HTMLElement {
+  const span = el(
+    doc,
+    'span',
+    { 'data-add-subtask': '', role: 'button' },
+    '+ Add subtask'
+  )
+  span.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const parent = span.parentNode
+    if (!parent) return
+    const input = doc.createElement('input') as HTMLInputElement
+    input.type = 'text'
+    input.setAttribute('data-add-subtask-input', '')
+    parent.replaceChild(input, span)
+    input.focus()
+    input.addEventListener('keydown', async (ke) => {
+      const evt = ke as KeyboardEvent
+      if (evt.key === 'Enter') {
+        evt.preventDefault()
+        const trimmed = input.value.trim()
+        if (trimmed.length === 0) {
+          // Tear down without writing.
+          const fresh = renderAddSubtaskAffordance(doc, task, ctx)
+          if (input.parentNode) input.parentNode.replaceChild(fresh, input)
+          return
+        }
+        await ctx.onAddSubtaskSubmit(task, trimmed)
+      } else if (evt.key === 'Escape') {
+        evt.preventDefault()
+        const fresh = renderAddSubtaskAffordance(doc, task, ctx)
+        if (input.parentNode) input.parentNode.replaceChild(fresh, input)
+      }
+    })
+  })
+  return span
 }
 
 function tearDownConfirm(doc: Document): void {
@@ -354,6 +402,7 @@ function renderSubtasks(doc: Document, task: Task, ctx: RenderContext): HTMLElem
   task.subtasks.forEach((sub) => {
     ul.appendChild(renderSubtaskRow(doc, task, sub, ctx))
   })
+  ul.appendChild(renderAddSubtaskAffordance(doc, task, ctx))
   return ul
 }
 
@@ -448,18 +497,11 @@ function renderTaskRow(
 
   if (expanded && isCombined) {
     item.appendChild(renderSubtasks(doc, task, ctx))
+  } else if (!isCombined) {
+    item.appendChild(renderAddSubtaskAffordance(doc, task, ctx))
   }
 
   return item
-}
-
-function groupTasks(tasks: Task[]): Array<{ heading: string; tasks: Task[] }> {
-  const high = tasks.filter((t) => !!t.due)
-  const other = tasks.filter((t) => !t.due)
-  const groups: Array<{ heading: string; tasks: Task[] }> = []
-  if (high.length > 0) groups.push({ heading: 'HIGH PRIORITY', tasks: high })
-  if (other.length > 0) groups.push({ heading: 'OTHER TASKS', tasks: other })
-  return groups
 }
 
 function renderTaskCard(
@@ -473,14 +515,15 @@ function renderTaskCard(
     'data-view': 'todo-list',
   })
   const list = el(doc, 'ul', { 'data-task-list': '' })
-  const groups = groupTasks(tasks)
-  groups.forEach((group) => {
-    const heading = el(doc, 'h3', { 'data-group-heading': '' }, group.heading)
-    list.appendChild(heading)
-    group.tasks.forEach((task) => {
-      const expanded = expandedSlugs.has(task.slug)
-      list.appendChild(renderTaskRow(doc, task, expanded, ctx))
-    })
+  if (tasks.length > 0) {
+    list.appendChild(el(doc, 'h3', { 'data-group-heading': '' }, 'TASKS'))
+  }
+  const dued = tasks.filter((t) => !!t.due)
+  const undued = tasks.filter((t) => !t.due)
+  const ordered = [...dued, ...undued]
+  ordered.forEach((task) => {
+    const expanded = expandedSlugs.has(task.slug)
+    list.appendChild(renderTaskRow(doc, task, expanded, ctx))
   })
   card.appendChild(list)
   return card
@@ -587,13 +630,20 @@ export async function mountApp(container: HTMLElement): Promise<void> {
     return out
   }
 
+  function currentTask(slug: string): Task {
+    // The task was rendered from `tasks` so the slug is always present;
+    // the handler can only fire while the row is in the live DOM.
+    return tasks.find((t) => t.slug === slug) as Task
+  }
+
   const renderCtx: RenderContext = {
     onParentToggle: async (task: Task) => {
-      const next = toggleParent(task.raw)
-      await window.todoz.writeFile(task.filePath, next)
-      const flippedStatus: Task['status'] = task.status === 'done' ? 'todo' : 'done'
-      updateTask(task.slug, (t) => ({ ...t, raw: next, status: flippedStatus }))
+      const live = currentTask(task.slug)
+      const next = toggleParent(live.raw)
+      const flippedStatus: Task['status'] = live.status === 'done' ? 'todo' : 'done'
+      updateTask(live.slug, (t) => ({ ...t, raw: next, status: flippedStatus }))
       fullRender()
+      await window.todoz.writeFile(live.filePath, next)
     },
     onExpandToggle: (task: Task) => {
       const willExpand = !expandedSlugs.has(task.slug)
@@ -607,42 +657,59 @@ export async function mountApp(container: HTMLElement): Promise<void> {
       if (!item) return
       item.setAttribute('data-expanded', willExpand ? 'true' : 'false')
       const existing = item.querySelector('[data-subtasks]')
+      const live = currentTask(task.slug)
       if (willExpand) {
-        if (!existing && task.subtasks.length > 0) {
-          item.appendChild(renderSubtasks(doc, task, renderCtx))
+        if (!existing && live.subtasks.length > 0) {
+          item.appendChild(renderSubtasks(doc, live, renderCtx))
         }
       } else {
         if (existing) existing.remove()
       }
     },
     onSubtaskToggle: async (task: Task, subIndex: number) => {
-      const next = toggleSubtask(task.raw, subIndex)
-      await window.todoz.writeFile(task.filePath, next)
-      updateTask(task.slug, (t) => ({
+      const live = currentTask(task.slug)
+      const next = toggleSubtask(live.raw, subIndex)
+      updateTask(live.slug, (t) => ({
         ...t,
         raw: next,
         subtasks: rebuildSubtasksFromRaw(next),
       }))
       fullRender()
+      await window.todoz.writeFile(live.filePath, next)
     },
     onTopLevelRemove: async (task: Task) => {
-      const filename = splitPath(task.filePath).filename
+      const live = currentTask(task.slug)
+      const filename = splitPath(live.filePath).filename
+      tasks = tasks.filter((t) => t.slug !== live.slug)
+      expandedSlugs.delete(live.slug)
+      fullRender()
       if (window.todoz.archiveFile) {
         await window.todoz.archiveFile(filename)
       }
-      tasks = tasks.filter((t) => t.slug !== task.slug)
-      expandedSlugs.delete(task.slug)
-      fullRender()
     },
     onSubtaskRemove: async (task: Task, subIndex: number) => {
-      const next = removeSubtask(task.raw, subIndex)
-      await window.todoz.writeFile(task.filePath, next)
-      updateTask(task.slug, (t) => ({
+      const live = currentTask(task.slug)
+      const next = removeSubtask(live.raw, subIndex)
+      updateTask(live.slug, (t) => ({
         ...t,
         raw: next,
         subtasks: rebuildSubtasksFromRaw(next),
       }))
       fullRender()
+      await window.todoz.writeFile(live.filePath, next)
+    },
+    onAddSubtaskSubmit: async (task: Task, text: string) => {
+      const live = currentTask(task.slug)
+      const next = addSubtask(live.raw, text)
+      updateTask(live.slug, (t) => ({
+        ...t,
+        raw: next,
+        subtasks: rebuildSubtasksFromRaw(next),
+      }))
+      // Cover both simple→combined conversion and idempotent re-expansion.
+      expandedSlugs.add(live.slug)
+      fullRender()
+      await window.todoz.writeFile(live.filePath, next)
     },
     closeAllConfirms: () => {
       tearDownConfirm(doc)
@@ -669,9 +736,77 @@ export async function mountApp(container: HTMLElement): Promise<void> {
       defaultExpandSeeded = true
     }
     main.appendChild(renderTaskCard(doc, visible, expandedSlugs, renderCtx))
+    main.appendChild(renderAddTaskAffordance())
     main.appendChild(renderCommandBar(doc))
     bindCommandBar(main)
     body.appendChild(main)
+  }
+
+  function renderAddTaskAffordance(): HTMLElement {
+    const span = el(
+      doc,
+      'span',
+      { 'data-add-task': '', role: 'button' },
+      '+ Add task'
+    )
+    span.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const parent = span.parentNode as Node
+      const input = doc.createElement('input') as HTMLInputElement
+      input.type = 'text'
+      input.setAttribute('data-add-task-input', '')
+      input.setAttribute('placeholder', 'Task title')
+      parent.replaceChild(input, span)
+      input.focus()
+      const restore = () => {
+        const fresh = renderAddTaskAffordance()
+        ;(input.parentNode as Node).replaceChild(fresh, input)
+      }
+      input.addEventListener('keydown', async (ke) => {
+        const evt = ke as KeyboardEvent
+        if (evt.key === 'Escape') {
+          evt.preventDefault()
+          restore()
+          return
+        }
+        if (evt.key !== 'Enter') return
+        evt.preventDefault()
+        const trimmed = input.value.trim()
+        if (trimmed.length === 0) {
+          restore()
+          return
+        }
+        const today = todayIso()
+        const dir = vaultDir(tasks)
+        const existing = existingFilenamesFromTasks(tasks)
+        const autoTags =
+          activeFilter.kind === 'tag' ? [activeFilter.value] : []
+        const built = buildTaskFile({
+          title: trimmed,
+          tags: autoTags,
+          today,
+          existingFilenames: existing,
+        })
+        const filePath = dir ? `${dir}/${built.filename}` : built.filename
+        await window.todoz.writeFile(filePath, built.content)
+        const newTask: Task = {
+          slug: built.filename
+            .replace(/\.md$/, '')
+            .replace(/-\d{4}-\d{2}-\d{2}$/, ''),
+          filePath,
+          title: trimmed,
+          status: 'todo',
+          tags: autoTags,
+          created: today,
+          raw: built.content,
+          subtasks: [],
+        }
+        tasks = [...tasks, newTask]
+        fullRender()
+        pulseEntries(['inbox', ...autoTags])
+      })
+    })
+    return span
   }
 
   function bindSidebarClicks(sidebar: HTMLElement): void {

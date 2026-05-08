@@ -2,7 +2,12 @@ import { describe, it } from 'mocha'
 import { expect } from 'chai'
 import fs from 'fs'
 import path from 'path'
-import { toggleParent, toggleSubtask, removeSubtask } from '../../src/renderer/data/writeTodo'
+import {
+  toggleParent,
+  toggleSubtask,
+  removeSubtask,
+  addSubtask,
+} from '../../src/renderer/data/writeTodo'
 
 const FIX_DIR = path.join(__dirname, '..', 'fixtures', 'vault', 'todos')
 
@@ -107,5 +112,66 @@ describe('writeTodo.removeSubtask', () => {
     const next = removeSubtask(raw, 5)
     expect(next).to.match(/- \[ \] only/)
     expect(next).to.match(/status:\s*todo/)
+  })
+})
+
+describe('writeTodo.addSubtask', () => {
+  it('appends a new bullet to a body with existing top-level bullets', () => {
+    const raw =
+      '---\nstatus: todo\n---\n- [ ] first\n- [ ] second\n'
+    const next = addSubtask(raw, 'third')
+    expect(next).to.match(/- \[ \] third/)
+    const firstIdx = next.indexOf('- [ ] first')
+    const secondIdx = next.indexOf('- [ ] second')
+    const thirdIdx = next.indexOf('- [ ] third')
+    expect(firstIdx).to.be.greaterThan(-1)
+    expect(secondIdx).to.be.greaterThan(firstIdx)
+    expect(thirdIdx).to.be.greaterThan(secondIdx)
+  })
+
+  it('creates the first bullet on an empty body', () => {
+    const raw = '---\nstatus: todo\n---\n'
+    const next = addSubtask(raw, 'first thing')
+    expect(next).to.match(/- \[ \] first thing/)
+    expect(next).to.match(/status:\s*todo/)
+  })
+
+  it('creates the first bullet on a whitespace-only body', () => {
+    const raw = '---\nstatus: todo\n---\n   \n\n'
+    const next = addSubtask(raw, 'first thing')
+    expect(next).to.match(/- \[ \] first thing/)
+    expect(next).to.match(/status:\s*todo/)
+  })
+
+  it('trims surrounding whitespace from the input text', () => {
+    const raw =
+      '---\nstatus: todo\n---\n- [ ] first\n'
+    const next = addSubtask(raw, '   padded   ')
+    expect(next).to.match(/- \[ \] padded/)
+    expect(next).to.not.match(/- \[ \] {4}padded/)
+    expect(next).to.not.match(/padded {3}/)
+  })
+
+  it('leaves frontmatter unchanged', () => {
+    const raw =
+      '---\nstatus: todo\ntitle: "Prep deck"\ntags: [work]\n---\n- [ ] first\n'
+    const next = addSubtask(raw, 'second')
+    expect(next).to.match(/status:\s*todo/)
+    expect(next).to.match(/title:\s*"Prep deck"/)
+    expect(next).to.match(/tags:\s*\[work\]/)
+  })
+
+  it('preserves existing top-level bullet order', () => {
+    const raw =
+      '---\nstatus: todo\n---\n- [ ] alpha\n- [x] beta\n- [ ] gamma\n'
+    const next = addSubtask(raw, 'delta')
+    const aIdx = next.indexOf('- [ ] alpha')
+    const bIdx = next.indexOf('- [x] beta')
+    const gIdx = next.indexOf('- [ ] gamma')
+    const dIdx = next.indexOf('- [ ] delta')
+    expect(aIdx).to.be.greaterThan(-1)
+    expect(bIdx).to.be.greaterThan(aIdx)
+    expect(gIdx).to.be.greaterThan(bIdx)
+    expect(dIdx).to.be.greaterThan(gIdx)
   })
 })
