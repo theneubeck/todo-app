@@ -38,3 +38,7 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# User vault — local data, not code. Keep AGENTS.md (schema reference).
+vault/*
+!vault/AGENTS.md
