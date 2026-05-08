@@ -3,8 +3,9 @@ import fs from 'fs'
 import path from 'path'
 import { spawn } from 'child_process'
 import { parseTodo, type Task } from './renderer/data/parseTodo'
+import { getVaultPath } from './config/settings'
 
-const VAULT_PATH = path.join(__dirname, '..', 'test', 'fixtures', 'vault')
+const VAULT_PATH = getVaultPath()
 
 function createWindow(): void {
   const win = new BrowserWindow({

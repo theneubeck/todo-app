@@ -46,6 +46,7 @@ async function run(): Promise<void> {
     app = await electron.launch({
       args: [path.join(REPO_ROOT, 'dist', 'main.js')],
       cwd: REPO_ROOT,
+      env: { ...process.env, NODE_ENV: 'test' },
       timeout: 30_000,
     })
     const window: Page = await app.firstWindow()
