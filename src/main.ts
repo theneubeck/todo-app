@@ -1,11 +1,34 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import fs from 'fs'
 import path from 'path'
 import { spawn } from 'child_process'
 import { parseTodo, type Task } from './renderer/data/parseTodo'
 import { getVaultPath } from './config/settings'
+import {
+  readVaultConfig,
+  addRecent,
+  removeRecent as removeRecentFromConfig,
+  setLastOpened,
+} from './main/vaultConfig'
+import { createVault } from './main/createVault'
 
-const VAULT_PATH = getVaultPath()
+let activeVaultPath: string | null = null
+
+function getVaultConfigPath(): string {
+  return path.join(app.getPath('userData'), 'vault-config.json')
+}
+
+function resolveActiveVault(): string | null {
+  if (activeVaultPath) return activeVaultPath
+  const configured = getVaultPath()
+  if (configured) {
+    activeVaultPath = configured
+    return configured
+  }
+  const cfg = readVaultConfig(getVaultConfigPath())
+  activeVaultPath = cfg.lastOpened
+  return activeVaultPath
+}
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -21,7 +44,10 @@ function createWindow(): void {
 }
 
 ipcMain.handle('read-todos', (): Task[] => {
-  const dir = path.join(VAULT_PATH, 'todos')
+  const vault = resolveActiveVault()
+  if (!vault) return []
+  const dir = path.join(vault, 'todos')
+  if (!fs.existsSync(dir)) return []
   return fs
     .readdirSync(dir)
     .filter((f) => f.endsWith('.md'))
@@ -37,8 +63,10 @@ ipcMain.handle('write-file', (_e, filePath: string, content: string): void => {
 })
 
 ipcMain.handle('archive-file', (_e, filename: string): void => {
-  const todosDir = path.join(VAULT_PATH, 'todos')
-  const archiveDir = path.join(VAULT_PATH, 'archive', 'todos')
+  const vault = resolveActiveVault()
+  if (!vault) return
+  const todosDir = path.join(vault, 'todos')
+  const archiveDir = path.join(vault, 'archive', 'todos')
   fs.mkdirSync(archiveDir, { recursive: true })
   const src = path.join(todosDir, filename)
   const dest = path.join(archiveDir, filename)
@@ -62,6 +90,42 @@ ipcMain.handle('run-ollama', (_e, prompt: string): Promise<string> => {
     proc.on('close', () => resolve(out))
     proc.on('error', () => resolve(''))
   })
+})
+
+// ----- Vault picker IPC -----
+
+ipcMain.handle(
+  'vaultz:getConfig',
+  (): { lastOpened: string | null; recents: string[] } => {
+    if (process.env.NODE_ENV === 'test') {
+      const fixtureVault = getVaultPath()
+      return { lastOpened: fixtureVault, recents: fixtureVault ? [fixtureVault] : [] }
+    }
+    return readVaultConfig(getVaultConfigPath())
+  }
+)
+
+ipcMain.handle('vaultz:openFolderPicker', async (): Promise<string | null> => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory'],
+  })
+  if (result.canceled || result.filePaths.length === 0) return null
+  return result.filePaths[0]
+})
+
+ipcMain.handle('vaultz:createVault', (_e, vaultPath: string): void => {
+  createVault(vaultPath)
+})
+
+ipcMain.handle('vaultz:setActiveVault', (_e, vaultPath: string): void => {
+  activeVaultPath = vaultPath
+  const configPath = getVaultConfigPath()
+  addRecent(configPath, vaultPath)
+  setLastOpened(configPath, vaultPath)
+})
+
+ipcMain.handle('vaultz:removeRecent', (_e, vaultPath: string): void => {
+  removeRecentFromConfig(getVaultConfigPath(), vaultPath)
 })
 
 app.whenReady().then(createWindow)

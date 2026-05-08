@@ -7,6 +7,7 @@ import {
 } from './data/writeTodo'
 import { parseAddCommand } from './data/parseAddCommand'
 import { buildTaskFile } from './data/buildTaskFile'
+import { mountVaultPicker } from './views/VaultPicker'
 
 declare global {
   interface Window {
@@ -16,6 +17,14 @@ declare global {
       archiveFile?: (filename: string) => Promise<void>
       runOllama: (prompt: string) => Promise<string>
       today?: string
+      getVaultConfig?: () => Promise<{
+        lastOpened: string | null
+        recents: string[]
+      }>
+      openFolderPicker?: () => Promise<string | null>
+      createVault?: (vaultPath: string) => Promise<void>
+      setActiveVault?: (vaultPath: string) => Promise<void>
+      removeRecent?: (vaultPath: string) => Promise<void>
     }
   }
 }
@@ -586,6 +595,51 @@ function vaultDir(tasks: Task[]): string {
 // ----- Mount + interactions -----
 
 export async function mountApp(container: HTMLElement): Promise<void> {
+  const getVaultConfig = window.todoz.getVaultConfig
+  if (typeof getVaultConfig === 'function') {
+    const config = await getVaultConfig()
+    if (!config.lastOpened) {
+      await mountPickerWithSwap(container)
+      return
+    }
+    await mountMainShell(container, config.lastOpened)
+    return
+  }
+  await mountMainShell(container, null)
+}
+
+async function mountPickerWithSwap(container: HTMLElement): Promise<void> {
+  const todoz = window.todoz
+  const getVaultConfig = todoz.getVaultConfig
+  const openFolderPicker = todoz.openFolderPicker
+  const createVault = todoz.createVault
+  const setActiveVault = todoz.setActiveVault
+  const removeRecent = todoz.removeRecent
+  if (
+    !getVaultConfig ||
+    !openFolderPicker ||
+    !createVault ||
+    !setActiveVault ||
+    !removeRecent
+  ) {
+    return
+  }
+  await mountVaultPicker(container, {
+    getVaultConfig,
+    openFolderPicker,
+    createVault,
+    setActiveVault,
+    removeRecent,
+    onVaultActivated: (vaultPath: string) => {
+      void mountMainShell(container, vaultPath)
+    },
+  })
+}
+
+async function mountMainShell(
+  container: HTMLElement,
+  vaultPath: string | null
+): Promise<void> {
   const doc = container.ownerDocument
   container.innerHTML = ''
 
@@ -598,7 +652,27 @@ export async function mountApp(container: HTMLElement): Promise<void> {
   shell.appendChild(renderTopAppBar(doc))
   const body = el(doc, 'div', { 'data-app-body': '' })
   shell.appendChild(body)
-  container.appendChild(shell)
+
+  let rootMount: HTMLElement = shell
+  if (vaultPath) {
+    const mainView = el(doc, 'main', {
+      'data-main-view': '',
+      'data-vault-path': vaultPath,
+    })
+    const switchBtn = el(doc, 'button', {
+      type: 'button',
+      'data-open-another-vault': '',
+      'aria-label': 'Open another vault',
+    })
+    switchBtn.appendChild(icon(doc, 'folder_open'))
+    switchBtn.addEventListener('click', () => {
+      void mountPickerWithSwap(container)
+    })
+    mainView.appendChild(switchBtn)
+    mainView.appendChild(shell)
+    rootMount = mainView
+  }
+  container.appendChild(rootMount)
 
   function visibleTasks(): Task[] {
     return [...tasks]

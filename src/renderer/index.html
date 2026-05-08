@@ -567,6 +567,130 @@
         border-radius: 4px;
         padding: 4px 6px;
       }
+      /* Vault picker */
+      [data-vault-picker] {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        max-width: 480px;
+        margin: 32px auto;
+        padding: 32px;
+        background: var(--surface-container-lowest);
+        border: 1px solid var(--outline-variant);
+        border-radius: 0.5rem;
+      }
+      [data-vault-picker-heading] {
+        font-family: 'Inter', sans-serif;
+        font-size: 24px;
+        font-weight: 600;
+        margin: 0 0 8px 0;
+        letter-spacing: -0.01em;
+        color: var(--primary);
+      }
+      [data-vault-picker-actions] {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      [data-vault-picker-actions] button {
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        padding: 10px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 1px solid var(--outline-variant);
+      }
+      [data-vault-picker-create] {
+        background: var(--primary);
+        color: var(--on-primary);
+        border-color: var(--primary);
+      }
+      [data-vault-picker-open] {
+        background: var(--surface-container-lowest);
+        color: var(--on-surface);
+      }
+      [data-recents-header] {
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        color: var(--on-surface-variant);
+        margin: 24px 0 8px 0;
+        text-transform: uppercase;
+      }
+      [data-recents] {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      [data-recent-row] {
+        display: flex;
+        flex-direction: column;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--outline-variant);
+        cursor: pointer;
+        position: relative;
+      }
+      [data-recent-row]:hover {
+        background: var(--surface-container-low);
+      }
+      [data-recent-row] [data-recent-name] {
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: var(--on-surface);
+      }
+      [data-recent-row] [data-recent-path] {
+        font-family: monospace;
+        font-size: 12px;
+        line-height: 1;
+        color: var(--on-surface-variant);
+        margin-top: 2px;
+      }
+      [data-recent-row] [data-remove-recent] {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        width: 16px;
+        height: 16px;
+        padding: 0;
+        opacity: 0;
+        color: var(--on-surface-variant);
+      }
+      [data-recent-row]:hover [data-remove-recent] {
+        opacity: 1;
+      }
+      [data-main-view] {
+        display: block;
+        position: relative;
+      }
+      [data-open-another-vault] {
+        position: absolute;
+        right: 24px;
+        top: 16px;
+        z-index: 10;
+        width: 32px;
+        height: 32px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        color: var(--on-surface);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      [data-open-another-vault]:hover {
+        border-color: var(--outline);
+      }
     </style>
   </head>
   <body>
