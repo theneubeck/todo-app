@@ -373,6 +373,61 @@
         text-decoration: line-through;
         color: var(--on-surface-variant);
       }
+      [data-task-title][data-completed='true'] {
+        text-decoration: line-through;
+        color: var(--on-surface-variant);
+      }
+      [data-subtask-title][data-completed='true'] {
+        text-decoration: line-through;
+        color: var(--on-surface-variant);
+      }
+      [data-checkbox-wrapper][data-checked='true'] {
+        background-color: #16a34a;
+        border-radius: 3px;
+      }
+      [data-checkbox-wrapper][data-checked='true'] input[type='checkbox'] {
+        accent-color: #16a34a;
+      }
+      [data-task][data-expanded='true'] [data-chevron] {
+        transform: rotate(90deg);
+      }
+      [data-remove] {
+        font-size: 12px;
+        color: var(--outline-variant);
+        padding: 4px;
+        opacity: 0.6;
+        cursor: pointer;
+        user-select: none;
+        margin-left: 8px;
+      }
+      [data-remove]:hover {
+        opacity: 1;
+      }
+      [data-confirm] {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--secondary-container);
+        color: var(--on-secondary-container);
+        border: 1px solid var(--outline-variant);
+        border-radius: 4px;
+        padding: 4px 8px;
+        margin-left: 8px;
+      }
+      [data-confirm-no],
+      [data-confirm-yes] {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 2px 6px;
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: 3px;
+      }
+      [data-confirm-yes] {
+        background: var(--error-container);
+        color: var(--on-error-container);
+      }
       /* Command bar */
       [data-command-bar] {
         position: fixed;

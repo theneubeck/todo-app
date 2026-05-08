@@ -70,3 +70,30 @@ export function toggleSubtask(raw: string, index: number): string {
   const newBody = lines.join('\n')
   return `${fm}${newBody}`
 }
+
+export function removeSubtask(raw: string, index: number): string {
+  const { fm, body } = splitFrontmatter(raw)
+  const lines = body.split(/\r?\n/)
+  let seen = -1
+  let startIdx = -1
+  for (let i = 0; i < lines.length; i += 1) {
+    if (classifyLine(lines[i]) === 'topCheckbox') {
+      seen += 1
+      if (seen === index) {
+        startIdx = i
+        break
+      }
+    }
+  }
+  if (startIdx === -1) {
+    return `${fm}${lines.join('\n')}`
+  }
+  // Remove the start line plus any following lines that are children
+  // (first character is whitespace) — these are indented continuations.
+  let endIdx = startIdx + 1
+  while (endIdx < lines.length && /^\s/.test(lines[endIdx]) && lines[endIdx].length > 0) {
+    endIdx += 1
+  }
+  const newLines = lines.slice(0, startIdx).concat(lines.slice(endIdx))
+  return `${fm}${newLines.join('\n')}`
+}

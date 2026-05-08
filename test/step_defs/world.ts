@@ -12,6 +12,7 @@ export class TodozWorld extends World {
   dom?: JSDOM
   lastWriteFilePath?: string
   lastWriteFileContent?: string
+  lastArchiveFilePath?: string
 
   mountWindow(): void {
     this.dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
@@ -23,6 +24,9 @@ export class TodozWorld extends World {
       writeFile: async (path: string, content: string) => {
         this.lastWriteFilePath = path
         this.lastWriteFileContent = content
+      },
+      archiveFile: async (path: string) => {
+        this.lastArchiveFilePath = path
       },
       runOllama: async () => '',
     }

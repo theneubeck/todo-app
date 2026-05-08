@@ -69,4 +69,22 @@ describe('parseTodo', () => {
     const task = parseTodo(raw, 'thing-2026-05-04.md')
     expect(task.tags).to.deep.equal([])
   })
+
+  it('defaults title to empty string when frontmatter has no title field', () => {
+    const raw = '---\ntype: task\nstatus: todo\ncreated: 2026-05-04\n---\n'
+    const task = parseTodo(raw, 'thing-2026-05-04.md')
+    expect(task.title).to.equal('')
+  })
+
+  it('defaults status to todo when frontmatter has no status field', () => {
+    const raw = '---\ntype: task\ntitle: "T"\ncreated: 2026-05-04\n---\n'
+    const task = parseTodo(raw, 'thing-2026-05-04.md')
+    expect(task.status).to.equal('todo')
+  })
+
+  it('defaults created to empty string when frontmatter has no created field', () => {
+    const raw = '---\ntype: task\ntitle: "T"\nstatus: todo\n---\n'
+    const task = parseTodo(raw, 'thing-2026-05-04.md')
+    expect(task.created).to.equal('')
+  })
 })

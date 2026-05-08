@@ -36,6 +36,15 @@ ipcMain.handle('write-file', (_e, filePath: string, content: string): void => {
   fs.writeFileSync(filePath, content, 'utf-8')
 })
 
+ipcMain.handle('archive-file', (_e, filename: string): void => {
+  const todosDir = path.join(VAULT_PATH, 'todos')
+  const archiveDir = path.join(VAULT_PATH, 'archive', 'todos')
+  fs.mkdirSync(archiveDir, { recursive: true })
+  const src = path.join(todosDir, filename)
+  const dest = path.join(archiveDir, filename)
+  fs.renameSync(src, dest)
+})
+
 ipcMain.handle('run-ollama', (_e, prompt: string): Promise<string> => {
   return new Promise((resolve) => {
     const agentsMd = fs.existsSync('AGENTS.md')

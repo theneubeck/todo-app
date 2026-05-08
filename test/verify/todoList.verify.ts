@@ -10,6 +10,10 @@ const FIXTURE_NAMES = [
   'call-dentist-2026-05-04.md',
   'q2-report-2026-05-04.md',
   'read-anthropic-paper-2026-05-04.md',
+  'buy-milk-2026-05-08.md',
+  'send-invoice-2026-05-08.md',
+  'prep-deck-2026-05-08.md',
+  'weekly-shop-2026-05-08.md',
 ] as const
 
 function snapshotFixtures(): Map<string, string> {
@@ -59,31 +63,32 @@ async function run(): Promise<void> {
     await window.screenshot({ path: shotInitial, fullPage: true })
     screenshots.push(shotInitial)
 
-    const dentistFile = path.join(FIX_DIR, 'call-dentist-2026-05-04.md')
-    const beforeParent = fs.readFileSync(dentistFile, 'utf-8')
+    // Under the task-row-interactions contract, only simple tasks have a
+    // parent checkbox in the row chrome. buy-milk is the simple-task fixture
+    // we use to verify the parent toggle round-trips frontmatter status.
+    const milkFile = path.join(FIX_DIR, 'buy-milk-2026-05-08.md')
+    const beforeParent = fs.readFileSync(milkFile, 'utf-8')
 
-    await window.click('[data-task="call-dentist"] > [data-task-row] input[type="checkbox"]')
+    await window.click(
+      '[data-task="buy-milk"] [data-task-row] [data-checkbox-wrapper] input[type="checkbox"]'
+    )
     await window.waitForTimeout(200)
 
-    const afterParent = fs.readFileSync(dentistFile, 'utf-8')
+    const afterParent = fs.readFileSync(milkFile, 'utf-8')
     const parentDoneInFm = /status:\s*done/.test(afterParent)
-    const parentBoxFlipped = /- \[x\] Book appointment/.test(afterParent)
     record(
       'write-back: parent toggle flips status to done',
       parentDoneInFm,
-      parentDoneInFm ? 'frontmatter contains status: done' : `frontmatter not flipped:\n${afterParent}`
-    )
-    record(
-      'write-back: parent toggle flips first body checkbox',
-      parentBoxFlipped,
-      parentBoxFlipped ? 'first body checkbox is - [x]' : `first body checkbox not flipped:\n${afterParent}`
+      parentDoneInFm
+        ? 'frontmatter contains status: done'
+        : `frontmatter not flipped:\n${afterParent}`
     )
 
     const shotParentToggled = path.join(SHOT_DIR, 'todoList-parent-toggled.png')
     await window.screenshot({ path: shotParentToggled, fullPage: true })
     screenshots.push(shotParentToggled)
 
-    fs.writeFileSync(dentistFile, beforeParent, 'utf-8')
+    fs.writeFileSync(milkFile, beforeParent, 'utf-8')
 
     const q2File = path.join(FIX_DIR, 'q2-report-2026-05-04.md')
     const beforeSub = fs.readFileSync(q2File, 'utf-8')
@@ -97,7 +102,9 @@ async function run(): Promise<void> {
     await window.click('[data-task="q2-report"] [data-task-row] [data-chevron]')
     await window.waitForSelector('[data-task="q2-report"] [data-subtask="1"]', { timeout: 5_000 })
 
-    await window.click('[data-task="q2-report"] [data-subtask="1"] input[type="checkbox"]')
+    await window.click(
+      '[data-task="q2-report"] [data-subtask="1"] [data-checkbox-wrapper] input[type="checkbox"]'
+    )
     await window.waitForTimeout(200)
 
     const afterSub = fs.readFileSync(q2File, 'utf-8')

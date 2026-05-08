@@ -1,5 +1,5 @@
 import type { Task } from './data/parseTodo'
-import { toggleParent, toggleSubtask } from './data/writeTodo'
+import { toggleParent, toggleSubtask, removeSubtask } from './data/writeTodo'
 import { parseAddCommand } from './data/parseAddCommand'
 import { buildTaskFile } from './data/buildTaskFile'
 
@@ -8,6 +8,7 @@ declare global {
     todoz: {
       readTodos: () => Promise<Task[]>
       writeFile: (filePath: string, content: string) => Promise<void>
+      archiveFile?: (filename: string) => Promise<void>
       runOllama: (prompt: string) => Promise<string>
       today?: string
     }
@@ -235,51 +236,171 @@ function chipForTask(doc: Document, task: Task): HTMLElement {
   return el(doc, 'span', attrs, label)
 }
 
-function renderSubtasks(doc: Document, task: Task): HTMLElement {
+type RenderContext = {
+  onParentToggle: (task: Task) => Promise<void>
+  onExpandToggle: (task: Task) => void
+  onSubtaskToggle: (task: Task, subIndex: number) => Promise<void>
+  onTopLevelRemove: (task: Task) => Promise<void>
+  onSubtaskRemove: (task: Task, subIndex: number) => Promise<void>
+  closeAllConfirms: () => void
+}
+
+function tearDownConfirm(doc: Document): void {
+  doc.querySelectorAll('[data-confirm]').forEach((el) => el.remove())
+}
+
+function renderConfirm(
+  doc: Document,
+  onYes: () => void,
+  onNo: () => void
+): HTMLElement {
+  const wrap = el(doc, 'span', { 'data-confirm': '' })
+  const label = el(doc, 'span', { 'data-confirm-label': '' }, 'Remove?')
+  wrap.appendChild(label)
+  const noBtn = el(
+    doc,
+    'button',
+    { type: 'button', 'data-confirm-no': '' },
+    'No'
+  )
+  const yesBtn = el(
+    doc,
+    'button',
+    { type: 'button', 'data-confirm-yes': '' },
+    'Yes'
+  )
+  wrap.appendChild(noBtn)
+  wrap.appendChild(yesBtn)
+  noBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    onNo()
+  })
+  yesBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    onYes()
+  })
+  return wrap
+}
+
+function renderSubtaskRow(
+  doc: Document,
+  task: Task,
+  sub: Task['subtasks'][number],
+  ctx: RenderContext
+): HTMLElement {
+  const li = el(doc, 'li', {
+    'data-subtask': String(sub.index),
+    'data-subtask-done': sub.done ? 'true' : 'false',
+  })
+  const cbWrap = el(doc, 'div', {
+    'data-checkbox-wrapper': '',
+    'data-checked': sub.done ? 'true' : 'false',
+  })
+  const cb = el(doc, 'input', { type: 'checkbox' }) as HTMLInputElement
+  cb.checked = sub.done
+  cbWrap.appendChild(cb)
+  li.appendChild(cbWrap)
+
+  // Single visible label carries both legacy ([data-subtask-label],
+  // [data-strikethrough]) and new ([data-subtask-title], [data-completed])
+  // attributes so existing tests and the new contract both query it.
+  const labelAttrs: Record<string, string> = {
+    'data-subtask-label': '',
+    'data-subtask-title': '',
+  }
+  if (sub.done) {
+    labelAttrs['data-strikethrough'] = 'true'
+    labelAttrs['data-completed'] = 'true'
+  }
+  const label = el(doc, 'span', labelAttrs, sub.label)
+  li.appendChild(label)
+
+  const removeBtn = el(
+    doc,
+    'span',
+    { 'data-remove': '', role: 'button', 'aria-label': 'Remove subtask' },
+    '✕'
+  )
+  li.appendChild(removeBtn)
+
+  cb.addEventListener('click', async (e) => {
+    e.stopPropagation()
+    await ctx.onSubtaskToggle(task, sub.index)
+  })
+  removeBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    ctx.closeAllConfirms()
+    const confirm = renderConfirm(
+      doc,
+      async () => {
+        tearDownConfirm(doc)
+        await ctx.onSubtaskRemove(task, sub.index)
+      },
+      () => {
+        tearDownConfirm(doc)
+      }
+    )
+    li.appendChild(confirm)
+  })
+  return li
+}
+
+function renderSubtasks(doc: Document, task: Task, ctx: RenderContext): HTMLElement {
   const ul = el(doc, 'ul', {
     'data-subtasks': '',
+    'data-subtask-list': '',
     'data-guide-line': '',
   })
   task.subtasks.forEach((sub) => {
-    const li = el(doc, 'li', {
-      'data-subtask': String(sub.index),
-      'data-subtask-done': sub.done ? 'true' : 'false',
-    })
-    const cb = el(doc, 'input', { type: 'checkbox' }) as HTMLInputElement
-    cb.checked = sub.done
-    li.appendChild(cb)
-    const labelAttrs: Record<string, string> = { 'data-subtask-label': '' }
-    if (sub.done) labelAttrs['data-strikethrough'] = 'true'
-    const label = el(doc, 'span', labelAttrs, sub.label)
-    li.appendChild(label)
-    cb.addEventListener('click', async () => {
-      const next = toggleSubtask(task.raw, sub.index)
-      await window.todoz.writeFile(task.filePath, next)
-    })
-    ul.appendChild(li)
+    ul.appendChild(renderSubtaskRow(doc, task, sub, ctx))
   })
   return ul
 }
 
-function renderTaskRow(doc: Document, task: Task, expanded: boolean): HTMLElement {
+function renderTaskRow(
+  doc: Document,
+  task: Task,
+  expanded: boolean,
+  ctx: RenderContext
+): HTMLElement {
+  const isCombined = task.subtasks.length > 0
+  const kind = isCombined ? 'combined' : 'simple'
   const item = el(doc, 'li', {
     'data-task': task.slug,
     'data-task-status': task.status,
+    'data-kind': kind,
     'data-expanded': expanded ? 'true' : 'false',
   })
 
   const row = el(doc, 'div', { 'data-task-row': '' })
-  const chevron = icon(doc, expanded ? 'keyboard_arrow_down' : 'keyboard_arrow_right')
-  chevron.setAttribute('data-chevron', '')
-  row.appendChild(chevron)
 
-  const cbWrap = el(doc, 'div', { 'data-checkbox-wrapper': '' })
-  const cb = el(doc, 'input', { type: 'checkbox' }) as HTMLInputElement
-  cb.checked = task.status === 'done'
-  cbWrap.appendChild(cb)
-  row.appendChild(cbWrap)
+  if (isCombined) {
+    const chevron = icon(doc, 'keyboard_arrow_right')
+    chevron.setAttribute('data-chevron', '')
+    row.appendChild(chevron)
+  } else {
+    const cbWrap = el(doc, 'div', {
+      'data-checkbox-wrapper': '',
+      'data-checked': task.status === 'done' ? 'true' : 'false',
+    })
+    const cb = el(doc, 'input', { type: 'checkbox' }) as HTMLInputElement
+    cb.checked = task.status === 'done'
+    cbWrap.appendChild(cb)
+    row.appendChild(cbWrap)
+    cb.addEventListener('click', async (e) => {
+      e.stopPropagation()
+      await ctx.onParentToggle(task)
+    })
+  }
 
-  const title = el(doc, 'span', { 'data-task-title': '' }, task.title)
+  const titleAttrs: Record<string, string> = { 'data-task-title': '' }
+  const simpleDone = !isCombined && task.status === 'done'
+  const allSubtasksDone =
+    isCombined && task.subtasks.every((s) => s.done)
+  if (simpleDone || allSubtasksDone) {
+    titleAttrs['data-completed'] = 'true'
+  }
+  const title = el(doc, 'span', titleAttrs, task.title)
   row.appendChild(title)
 
   if (task.due) {
@@ -289,32 +410,44 @@ function renderTaskRow(doc: Document, task: Task, expanded: boolean): HTMLElemen
 
   row.appendChild(chipForTask(doc, task))
 
-  cb.addEventListener('click', async (e) => {
-    e.stopPropagation()
-    const next = toggleParent(task.raw)
-    await window.todoz.writeFile(task.filePath, next)
-  })
+  const removeBtn = el(
+    doc,
+    'span',
+    { 'data-remove': '', role: 'button', 'aria-label': 'Remove task' },
+    '✕'
+  )
+  row.appendChild(removeBtn)
 
-  row.addEventListener('click', () => {
-    const next = item.getAttribute('data-expanded') === 'true' ? 'false' : 'true'
-    item.setAttribute('data-expanded', next)
-    chevron.textContent = next === 'true' ? 'keyboard_arrow_down' : 'keyboard_arrow_right'
-    chevron.setAttribute(
-      'data-icon',
-      next === 'true' ? 'keyboard_arrow_down' : 'keyboard_arrow_right'
+  if (isCombined) {
+    row.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement | null
+      if (target && target.closest('[data-remove]')) {
+        return
+      }
+      ctx.onExpandToggle(task)
+    })
+  }
+
+  removeBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    ctx.closeAllConfirms()
+    const confirm = renderConfirm(
+      doc,
+      async () => {
+        tearDownConfirm(doc)
+        await ctx.onTopLevelRemove(task)
+      },
+      () => {
+        tearDownConfirm(doc)
+      }
     )
-    const existing = item.querySelector('[data-subtasks]')
-    if (next === 'true' && !existing && task.subtasks.length > 0) {
-      item.appendChild(renderSubtasks(doc, task))
-    } else if (next === 'false' && existing) {
-      existing.remove()
-    }
+    row.appendChild(confirm)
   })
 
   item.appendChild(row)
 
-  if (expanded && task.subtasks.length > 0) {
-    item.appendChild(renderSubtasks(doc, task))
+  if (expanded && isCombined) {
+    item.appendChild(renderSubtasks(doc, task, ctx))
   }
 
   return item
@@ -329,21 +462,24 @@ function groupTasks(tasks: Task[]): Array<{ heading: string; tasks: Task[] }> {
   return groups
 }
 
-function renderTaskCard(doc: Document, tasks: Task[]): HTMLElement {
+function renderTaskCard(
+  doc: Document,
+  tasks: Task[],
+  expandedSlugs: Set<string>,
+  ctx: RenderContext
+): HTMLElement {
   const card = el(doc, 'div', {
     'data-task-card': '',
     'data-view': 'todo-list',
   })
   const list = el(doc, 'ul', { 'data-task-list': '' })
   const groups = groupTasks(tasks)
-  let firstTaskRendered = false
   groups.forEach((group) => {
     const heading = el(doc, 'h3', { 'data-group-heading': '' }, group.heading)
     list.appendChild(heading)
     group.tasks.forEach((task) => {
-      const expanded = !firstTaskRendered
-      firstTaskRendered = true
-      list.appendChild(renderTaskRow(doc, task, expanded))
+      const expanded = expandedSlugs.has(task.slug)
+      list.appendChild(renderTaskRow(doc, task, expanded, ctx))
     })
   })
   card.appendChild(list)
@@ -412,6 +548,8 @@ export async function mountApp(container: HTMLElement): Promise<void> {
 
   let tasks = await window.todoz.readTodos()
   let activeFilter: Filter = { kind: 'inbox' }
+  const expandedSlugs = new Set<string>()
+  let defaultExpandSeeded = false
 
   const shell = el(doc, 'div', { 'data-app-shell': '' })
   shell.appendChild(renderTopAppBar(doc))
@@ -425,6 +563,92 @@ export async function mountApp(container: HTMLElement): Promise<void> {
       .sort(compareDue)
   }
 
+  function updateTask(slug: string, updater: (t: Task) => Task): void {
+    tasks = tasks.map((t) => (t.slug === slug ? updater(t) : t))
+  }
+
+  function rebuildSubtasksFromRaw(raw: string): Task['subtasks'] {
+    const fmEnd = raw.indexOf('---', 3)
+    let body = raw
+    if (fmEnd !== -1) {
+      const after = raw.indexOf('\n', fmEnd + 3)
+      body = after === -1 ? '' : raw.slice(after + 1)
+    }
+    const lines = body.split(/\r?\n/)
+    const out: Task['subtasks'] = []
+    let index = 0
+    for (const line of lines) {
+      const m = /^- \[( |x)\] (.*)$/.exec(line)
+      if (m) {
+        out.push({ index, label: m[2], done: m[1] === 'x' })
+        index += 1
+      }
+    }
+    return out
+  }
+
+  const renderCtx: RenderContext = {
+    onParentToggle: async (task: Task) => {
+      const next = toggleParent(task.raw)
+      await window.todoz.writeFile(task.filePath, next)
+      const flippedStatus: Task['status'] = task.status === 'done' ? 'todo' : 'done'
+      updateTask(task.slug, (t) => ({ ...t, raw: next, status: flippedStatus }))
+      fullRender()
+    },
+    onExpandToggle: (task: Task) => {
+      const willExpand = !expandedSlugs.has(task.slug)
+      if (willExpand) expandedSlugs.add(task.slug)
+      else expandedSlugs.delete(task.slug)
+      // In-place DOM mutation so any callers holding row references see the
+      // updated state without a full re-render dropping them.
+      const item = body.querySelector(
+        `[data-task="${cssEscape(task.slug)}"]`
+      ) as HTMLElement | null
+      if (!item) return
+      item.setAttribute('data-expanded', willExpand ? 'true' : 'false')
+      const existing = item.querySelector('[data-subtasks]')
+      if (willExpand) {
+        if (!existing && task.subtasks.length > 0) {
+          item.appendChild(renderSubtasks(doc, task, renderCtx))
+        }
+      } else {
+        if (existing) existing.remove()
+      }
+    },
+    onSubtaskToggle: async (task: Task, subIndex: number) => {
+      const next = toggleSubtask(task.raw, subIndex)
+      await window.todoz.writeFile(task.filePath, next)
+      updateTask(task.slug, (t) => ({
+        ...t,
+        raw: next,
+        subtasks: rebuildSubtasksFromRaw(next),
+      }))
+      fullRender()
+    },
+    onTopLevelRemove: async (task: Task) => {
+      const filename = splitPath(task.filePath).filename
+      if (window.todoz.archiveFile) {
+        await window.todoz.archiveFile(filename)
+      }
+      tasks = tasks.filter((t) => t.slug !== task.slug)
+      expandedSlugs.delete(task.slug)
+      fullRender()
+    },
+    onSubtaskRemove: async (task: Task, subIndex: number) => {
+      const next = removeSubtask(task.raw, subIndex)
+      await window.todoz.writeFile(task.filePath, next)
+      updateTask(task.slug, (t) => ({
+        ...t,
+        raw: next,
+        subtasks: rebuildSubtasksFromRaw(next),
+      }))
+      fullRender()
+    },
+    closeAllConfirms: () => {
+      tearDownConfirm(doc)
+    },
+  }
+
   function fullRender(): void {
     body.innerHTML = ''
     const sidebar = renderSidebar(doc, tasks, activeFilter)
@@ -435,7 +659,16 @@ export async function mountApp(container: HTMLElement): Promise<void> {
     const visible = visibleTasks()
     const remaining = visible.filter((t) => t.status !== 'done').length
     main.appendChild(renderMainHeader(doc, remaining, activeFilter))
-    main.appendChild(renderTaskCard(doc, visible))
+    // Seed default expansion once: the very first task in the visible list
+    // is rendered expanded on initial mount (matches the legacy chrome
+    // behavior). Subsequent renders honor explicit expandedSlugs only.
+    if (!defaultExpandSeeded) {
+      if (visible.length > 0) {
+        expandedSlugs.add(visible[0].slug)
+      }
+      defaultExpandSeeded = true
+    }
+    main.appendChild(renderTaskCard(doc, visible, expandedSlugs, renderCtx))
     main.appendChild(renderCommandBar(doc))
     bindCommandBar(main)
     body.appendChild(main)

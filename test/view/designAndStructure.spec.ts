@@ -170,15 +170,23 @@ describe('DesignAndStructure', () => {
     })
   })
 
-  it('renders a chevron, a checkbox, a title, a chip on every task row', async () => {
+  it('renders a chevron, a title, a chip on every combined task row', async () => {
+    // Superseded by features/task-row-interactions: every task in
+    // STANDARD_FIXTURES (and this spec's buildTasks()) is combined, so under
+    // the combined-row contract the parent row carries chevron + title + chip
+    // but no [data-checkbox-wrapper] (parent checkbox lives on simple rows
+    // only — see test/view/taskRowInteractions.spec.ts for that side).
     await mountApp(dom.window.document.body)
     const rows = dom.window.document.querySelectorAll('[data-task-row]')
     expect(rows.length).to.equal(3)
     rows.forEach((row) => {
       expect(row.querySelector('[data-chevron]'), 'chevron').to.not.equal(null)
-      expect(row.querySelector('input[type="checkbox"]'), 'checkbox').to.not.equal(null)
       expect(row.querySelector('[data-task-title]'), 'title').to.not.equal(null)
       expect(row.querySelector('[data-chip]'), 'chip').to.not.equal(null)
+      expect(
+        row.querySelector('[data-checkbox-wrapper]'),
+        'no parent checkbox wrapper on combined rows'
+      ).to.equal(null)
     })
   })
 
@@ -221,32 +229,20 @@ describe('DesignAndStructure', () => {
     expect(hint?.textContent?.trim()).to.equal('CMD + K')
   })
 
-  it('writes status:done to file when a parent checkbox in the chrome is clicked', async () => {
-    const writes: Array<{ filePath: string; content: string }> = []
-    const dom2 = new JSDOM('<!DOCTYPE html><html><body></body></html>')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(dom2.window as any).todoz = {
-      readTodos: async () => buildTasks(),
-      writeFile: async (filePath: string, content: string) => {
-        writes.push({ filePath, content })
-      },
-      runOllama: async () => '',
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(globalThis as any).window = dom2.window
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(globalThis as any).document = dom2.window.document
-    await mountApp(dom2.window.document.body)
-    const dentist = dom2.window.document.querySelector(
+  it('renders combined task rows with no parent checkbox wrapper', async () => {
+    // Superseded by features/task-row-interactions: combined rows under the
+    // new contract have no parent checkbox wrapper (the row body click is the
+    // expand/collapse target). The legacy "click the parent checkbox to mark
+    // done" behavior is now exercised on simple-task fixtures end-to-end in
+    // test/view/taskRowInteractions.spec.ts.
+    await mountApp(dom.window.document.body)
+    const dentist = dom.window.document.querySelector(
       '[data-task="call-dentist"]'
     ) as HTMLElement
-    const cb = dentist.querySelector(
-      '[data-checkbox-wrapper] input[type="checkbox"]'
-    ) as HTMLInputElement
-    cb.click()
-    await new Promise((r) => setTimeout(r, 10))
-    expect(writes.length).to.equal(1)
-    expect(writes[0].content).to.match(/status:\s*done/)
+    const wrapper = dentist.querySelector(
+      '[data-task-row] [data-checkbox-wrapper]'
+    )
+    expect(wrapper).to.equal(null)
   })
 
   it('writes back the toggled subtask line when a subtask checkbox is clicked', async () => {
