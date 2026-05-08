@@ -9,7 +9,7 @@ Build the nested todo list. Visual spec in `DESIGN.md`. Vault schema in `vault/A
 Every feature flows: requirements → plan → implement → verify. Do not skip steps.
 
 ```
-[/plan skill OR hand-written requirements]
+[/plan-feature skill OR hand-written requirements]
               ↓
         features/<slug>/
               ↓
@@ -18,7 +18,7 @@ Every feature flows: requirements → plan → implement → verify. Do not skip
      └──────── (if red) ─────┘
 ```
 
-- Seeding a feature → `/plan` (interactive interview skill) **or** drop requirements + assets into `features/<slug>/` by hand
+- Seeding a feature → `/plan-feature` (interactive interview skill) **or** drop requirements + assets into `features/<slug>/` by hand
 - Analyzing & freezing the plan → `/agent plan`
 - Writing code → `/agent implement`
 - Checking results → `/agent verify`

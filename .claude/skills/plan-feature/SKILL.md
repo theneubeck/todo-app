@@ -1,9 +1,9 @@
 ---
-name: plan
+name: plan-feature
 description: Interview-driven planner for new UI patterns / features. Walks five sections one question at a time and writes frozen plan artifacts to features/<slug>/. Writes no implementation code. Use when starting a new feature, before /agent implement.
 ---
 
-# Plan skill
+# Plan-feature skill
 
 You are now planning a new feature. Produce a written, **frozen** plan that the Implement and Verify agents execute without ambiguity. Write planning artifacts to disk; write no implementation code.
 
@@ -226,7 +226,7 @@ frozen: false
 
 This file is the only place Implement and Verify may write planning-adjacent content.
 The plan and the .feature file are frozen — if either turns out to be wrong, append
-a `## Problem` block here and stop. The user will re-run the plan skill.
+a `## Problem` block here and stop. The user will re-run the plan-feature skill.
 
 ## Problems
 

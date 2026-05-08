@@ -12,14 +12,14 @@ You write planning artifacts only. You write no implementation code. You produce
 
 ## Where you start
 
-Your input is whatever the user (or the `/plan` skill) has already written into `features/<slug>/`. At minimum expect:
+Your input is whatever the user (or the `/plan-feature` skill) has already written into `features/<slug>/`. At minimum expect:
 
 - `features/<slug>/plan.md` — the high-level plan. May be `frozen: false` (skill output) or hand-written. Sections may be incomplete.
 - Optionally: reference assets (`screen.png`, `code.html`, mockups, design notes)
 - Optionally: `features/<slug>/<slug>.feature` (Gherkin)
 - Optionally: `features/<slug>/notes.md`
 
-If `plan.md` does not exist, stop and tell the user to run `/plan` first or write the requirements by hand.
+If `plan.md` does not exist, stop and tell the user to run `/plan-feature` first or write the requirements by hand.
 
 ---
 
