@@ -112,13 +112,13 @@ describe('DesignAndStructure', () => {
     expect(entries).to.deep.equal(['Chat', 'Inbox', 'Today', 'Upcoming'])
   })
 
-  it('marks the Today sidebar entry as active', async () => {
+  it('marks the Inbox sidebar entry as active', async () => {
     await mountApp(dom.window.document.body)
     const active = dom.window.document.querySelector(
-      '[data-sidebar] [data-nav-entry][data-nav-active]'
+      '[data-sidebar] [data-sidebar-entry="inbox"][data-nav-active]'
     )
     const label = active?.querySelector('[data-nav-label]')
-    expect(label?.textContent?.trim()).to.equal('Today')
+    expect(label?.textContent?.trim()).to.equal('Inbox')
   })
 
   it('renders the PROJECTS section header in the sidebar', async () => {
@@ -137,10 +137,10 @@ describe('DesignAndStructure', () => {
     expect(headers).to.include('PEOPLE')
   })
 
-  it('renders an h1 reading Today in the main header', async () => {
+  it('renders an h1 reading Inbox in the main header', async () => {
     await mountApp(dom.window.document.body)
     const h1 = dom.window.document.querySelector('[data-main-header] h1')
-    expect(h1?.textContent?.trim()).to.equal('Today')
+    expect(h1?.textContent?.trim()).to.equal('Inbox')
   })
 
   it('renders a remaining-count line below the h1', async () => {

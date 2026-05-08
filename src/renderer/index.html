@@ -145,10 +145,31 @@
       [data-nav-entry]:hover {
         background: var(--surface-container-low);
       }
-      [data-nav-entry][data-nav-active] {
+      [data-nav-entry][data-nav-active],
+      [data-sidebar-entry][data-nav-active] {
         background: var(--surface-container-low);
         color: var(--primary);
         font-weight: 700;
+      }
+      [data-sidebar-entry] {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 8px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+        color: var(--on-surface);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      [data-sidebar-entry]:hover {
+        background: var(--surface-container-low);
+      }
+      [data-sidebar-entry][data-pulsing='true'] {
+        background: var(--secondary-container);
+        color: var(--on-secondary-container);
+        transition: background 600ms ease, color 600ms ease;
       }
       [data-nav-entry] .material-symbols-outlined {
         font-size: 20px;

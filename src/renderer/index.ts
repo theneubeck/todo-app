@@ -1,5 +1,7 @@
 import type { Task } from './data/parseTodo'
 import { toggleParent, toggleSubtask } from './data/writeTodo'
+import { parseAddCommand } from './data/parseAddCommand'
+import { buildTaskFile } from './data/buildTaskFile'
 
 declare global {
   interface Window {
@@ -7,9 +9,12 @@ declare global {
       readTodos: () => Promise<Task[]>
       writeFile: (filePath: string, content: string) => Promise<void>
       runOllama: (prompt: string) => Promise<string>
+      today?: string
     }
   }
 }
+
+export const PULSE_DURATION_MS = 600
 
 export function compareDue(a: Task, b: Task): number {
   if (a.due && b.due) return a.due < b.due ? -1 : a.due > b.due ? 1 : 0
@@ -65,75 +70,150 @@ function renderTopAppBar(doc: Document): HTMLElement {
   return header
 }
 
-function renderNavEntry(
+// ----- Filter & sidebar state -----
+
+type Filter =
+  | { kind: 'inbox' }
+  | { kind: 'tag'; value: string } // value: bare slug for project tags ("errands"); "@mike" for people
+
+function filterMatchesTask(filter: Filter, task: Task): boolean {
+  if (filter.kind === 'inbox') return true
+  return task.tags.includes(filter.value)
+}
+
+function filterLabel(filter: Filter): string {
+  if (filter.kind === 'inbox') return 'Inbox'
+  if (filter.value.startsWith('@')) return filter.value
+  return `#${filter.value}`
+}
+
+function entryKeyForFilter(filter: Filter): string {
+  if (filter.kind === 'inbox') return 'inbox'
+  return filter.value
+}
+
+function filterFromEntryKey(key: string): Filter {
+  if (key === 'inbox') return { kind: 'inbox' }
+  return { kind: 'tag', value: key }
+}
+
+// ----- Sidebar rendering -----
+
+type PrimaryEntry = {
+  key: string
+  label: string
+  icon: string
+}
+
+const PRIMARY_ENTRIES: PrimaryEntry[] = [
+  { key: 'chat', label: 'Chat', icon: 'chat_bubble' },
+  { key: 'inbox', label: 'Inbox', icon: 'inbox' },
+  { key: 'today', label: 'Today', icon: 'today' },
+  { key: 'upcoming', label: 'Upcoming', icon: 'calendar_month' },
+]
+
+function renderPrimaryEntry(
   doc: Document,
-  label: string,
-  iconName: string,
-  active = false
+  entry: PrimaryEntry,
+  active: boolean
 ): HTMLElement {
   const attrs: Record<string, string> = {
     href: '#',
     'data-nav-entry': '',
+    'data-sidebar-entry': entry.key,
+  }
+  if (active) attrs['data-nav-active'] = 'true'
+  const a = el(doc, 'a', attrs)
+  a.appendChild(icon(doc, entry.icon))
+  const text = el(doc, 'span', { 'data-nav-label': '' }, entry.label)
+  a.appendChild(text)
+  return a
+}
+
+function renderTagEntry(
+  doc: Document,
+  key: string,
+  visibleLabel: string,
+  iconName: string,
+  active: boolean
+): HTMLElement {
+  const attrs: Record<string, string> = {
+    href: '#',
+    'data-sidebar-entry': key,
   }
   if (active) attrs['data-nav-active'] = 'true'
   const a = el(doc, 'a', attrs)
   a.appendChild(icon(doc, iconName))
-  const text = el(doc, 'span', { 'data-nav-label': '' }, label)
+  const text = el(doc, 'span', { 'data-nav-label': '' }, visibleLabel)
   a.appendChild(text)
   return a
 }
 
-function renderSectionEntry(
-  doc: Document,
-  label: string,
-  iconName: string
-): HTMLElement {
-  const a = el(doc, 'a', { href: '#', 'data-section-entry': '' })
-  a.appendChild(icon(doc, iconName))
-  const text = el(doc, 'span', { 'data-section-entry-label': '' }, label)
-  a.appendChild(text)
-  return a
-}
-
-function renderSection(
-  doc: Document,
-  heading: string,
-  entries: Array<{ label: string; icon: string }>
-): HTMLElement {
-  const section = el(doc, 'div', { 'data-section': '' })
-  const h = el(doc, 'h3', { 'data-section-header': '' }, heading)
-  section.appendChild(h)
-  for (const e of entries) {
-    section.appendChild(renderSectionEntry(doc, e.label, e.icon))
+function uniqueTags(tasks: Task[]): { projects: string[]; people: string[] } {
+  const projects = new Set<string>()
+  const people = new Set<string>()
+  for (const t of tasks) {
+    for (const raw of t.tags) {
+      const tag = String(raw)
+      if (tag.startsWith('@')) people.add(tag.toLowerCase())
+      else projects.add(tag.toLowerCase())
+    }
   }
-  return section
+  return {
+    projects: Array.from(projects).sort(),
+    people: Array.from(people).sort(),
+  }
 }
 
-function renderSidebar(doc: Document): HTMLElement {
+function renderSidebar(
+  doc: Document,
+  tasks: Task[],
+  activeFilter: Filter
+): HTMLElement {
   const aside = el(doc, 'aside', { 'data-sidebar': '' })
-  aside.appendChild(renderNavEntry(doc, 'Chat', 'chat_bubble'))
-  aside.appendChild(renderNavEntry(doc, 'Inbox', 'inbox'))
-  aside.appendChild(renderNavEntry(doc, 'Today', 'today', true))
-  aside.appendChild(renderNavEntry(doc, 'Upcoming', 'calendar_month'))
-  aside.appendChild(
-    renderSection(doc, 'Projects', [
-      { label: 'Design System', icon: 'tag' },
-      { label: 'Frontend Architecture', icon: 'tag' },
-    ])
+  const activeKey = entryKeyForFilter(activeFilter)
+  for (const entry of PRIMARY_ENTRIES) {
+    const isActive = entry.key === activeKey
+    aside.appendChild(renderPrimaryEntry(doc, entry, isActive))
+  }
+
+  const { projects, people } = uniqueTags(tasks)
+
+  const projectsSection = el(doc, 'div', {
+    'data-section': 'projects',
+  })
+  projectsSection.appendChild(
+    el(doc, 'h3', { 'data-section-header': '' }, 'PROJECTS')
   )
-  aside.appendChild(
-    renderSection(doc, 'People', [
-      { label: '@name', icon: 'alternate_email' },
-      { label: '@someothername', icon: 'alternate_email' },
-    ])
-  )
+  for (const tag of projects) {
+    const isActive = activeKey === tag
+    projectsSection.appendChild(
+      renderTagEntry(doc, tag, `#${tag}`, 'tag', isActive)
+    )
+  }
+  aside.appendChild(projectsSection)
+
+  const peopleSection = el(doc, 'div', { 'data-section': 'people' })
+  peopleSection.appendChild(el(doc, 'h3', { 'data-section-header': '' }, 'PEOPLE'))
+  for (const handle of people) {
+    const isActive = activeKey === handle
+    peopleSection.appendChild(
+      renderTagEntry(doc, handle, handle, 'alternate_email', isActive)
+    )
+  }
+  aside.appendChild(peopleSection)
+
   return aside
 }
 
-function renderMainHeader(doc: Document, remaining: number): HTMLElement {
+function renderMainHeader(
+  doc: Document,
+  remaining: number,
+  activeFilter: Filter
+): HTMLElement {
   const header = el(doc, 'div', { 'data-main-header': '' })
   const inner = el(doc, 'div')
-  const h1 = el(doc, 'h1', {}, 'Today')
+  const h1 = el(doc, 'h1', {}, filterLabel(activeFilter))
   inner.appendChild(h1)
   const count = el(
     doc,
@@ -147,11 +227,9 @@ function renderMainHeader(doc: Document, remaining: number): HTMLElement {
 }
 
 function chipForTask(doc: Document, task: Task): HTMLElement {
-  // Map first tag to a chip; fall back to "Task" if none.
   const tag = task.tags[0]
   const label = tag ? tag.charAt(0).toUpperCase() + tag.slice(1) : 'Task'
   const attrs: Record<string, string> = { 'data-chip': '' }
-  // Heuristic priority: if task has a near-future due date treat as high.
   if (task.due) attrs['data-chip-priority'] = 'high'
   else attrs['data-chip-priority'] = 'medium'
   return el(doc, 'span', attrs, label)
@@ -225,7 +303,6 @@ function renderTaskRow(doc: Document, task: Task, expanded: boolean): HTMLElemen
       'data-icon',
       next === 'true' ? 'keyboard_arrow_down' : 'keyboard_arrow_right'
     )
-    // Toggle subtask container visibility
     const existing = item.querySelector('[data-subtasks]')
     if (next === 'true' && !existing && task.subtasks.length > 0) {
       item.appendChild(renderSubtasks(doc, task))
@@ -299,28 +376,166 @@ function renderCommandBar(doc: Document): HTMLElement {
   return bar
 }
 
+// ----- Helpers -----
+
+function todayIso(): string {
+  if (typeof window !== 'undefined' && window.todoz?.today) return window.todoz.today
+  return new Date().toISOString().slice(0, 10)
+}
+
+function splitPath(filePath: string): { dir: string; filename: string } {
+  const idx = filePath.lastIndexOf('/')
+  if (idx === -1) return { dir: '', filename: filePath }
+  return { dir: filePath.slice(0, idx), filename: filePath.slice(idx + 1) }
+}
+
+function existingFilenamesFromTasks(tasks: Task[]): string[] {
+  return tasks.map((t) => splitPath(t.filePath).filename)
+}
+
+function vaultDir(tasks: Task[]): string {
+  // Derive the vault todos directory from any existing task. When the vault is
+  // empty we fall back to a relative path so writeFile still receives a sensible
+  // value; the production main process uses absolute paths.
+  for (const t of tasks) {
+    const { dir } = splitPath(t.filePath)
+    if (dir) return dir
+  }
+  return 'vault/todos'
+}
+
+// ----- Mount + interactions -----
+
 export async function mountApp(container: HTMLElement): Promise<void> {
   const doc = container.ownerDocument
   container.innerHTML = ''
+
+  let tasks = await window.todoz.readTodos()
+  let activeFilter: Filter = { kind: 'inbox' }
+
   const shell = el(doc, 'div', { 'data-app-shell': '' })
-
   shell.appendChild(renderTopAppBar(doc))
-
   const body = el(doc, 'div', { 'data-app-body': '' })
-  body.appendChild(renderSidebar(doc))
-
-  const main = el(doc, 'main', { 'data-main': '' })
-  const tasks = await window.todoz.readTodos()
-  const sorted = [...tasks].sort(compareDue)
-  const remaining = sorted.filter((t) => t.status !== 'done').length
-
-  main.appendChild(renderMainHeader(doc, remaining))
-  main.appendChild(renderTaskCard(doc, sorted))
-  main.appendChild(renderCommandBar(doc))
-
-  body.appendChild(main)
   shell.appendChild(body)
   container.appendChild(shell)
+
+  function visibleTasks(): Task[] {
+    return [...tasks]
+      .filter((t) => filterMatchesTask(activeFilter, t))
+      .sort(compareDue)
+  }
+
+  function fullRender(): void {
+    body.innerHTML = ''
+    const sidebar = renderSidebar(doc, tasks, activeFilter)
+    body.appendChild(sidebar)
+    bindSidebarClicks(sidebar)
+
+    const main = el(doc, 'main', { 'data-main': '' })
+    const visible = visibleTasks()
+    const remaining = visible.filter((t) => t.status !== 'done').length
+    main.appendChild(renderMainHeader(doc, remaining, activeFilter))
+    main.appendChild(renderTaskCard(doc, visible))
+    main.appendChild(renderCommandBar(doc))
+    bindCommandBar(main)
+    body.appendChild(main)
+  }
+
+  function bindSidebarClicks(sidebar: HTMLElement): void {
+    const entries = sidebar.querySelectorAll('[data-sidebar-entry]')
+    entries.forEach((entry) => {
+      const key = entry.getAttribute('data-sidebar-entry') as string
+      // Today / Upcoming / Chat are inert in this feature.
+      if (key === 'today' || key === 'upcoming' || key === 'chat') return
+      entry.addEventListener('click', (e) => {
+        e.preventDefault()
+        activeFilter = filterFromEntryKey(key)
+        fullRender()
+      })
+    })
+  }
+
+  function pulseEntries(keys: string[]): void {
+    const sidebar = body.querySelector('[data-sidebar]') as HTMLElement
+    for (const key of keys) {
+      const node = sidebar.querySelector(
+        `[data-sidebar-entry="${cssEscape(key)}"]`
+      )
+      if (node) node.setAttribute('data-pulsing', 'true')
+    }
+    setTimeout(() => {
+      const live = body.querySelector('[data-sidebar]') as HTMLElement
+      live
+        .querySelectorAll('[data-sidebar-entry][data-pulsing="true"]')
+        .forEach((n) => n.removeAttribute('data-pulsing'))
+    }, PULSE_DURATION_MS)
+  }
+
+  function bindCommandBar(main: HTMLElement): void {
+    const input = main.querySelector(
+      '[data-command-bar] input[type="text"]'
+    ) as HTMLInputElement | null
+    if (!input) return
+    input.addEventListener('keydown', async (e) => {
+      const ke = e as KeyboardEvent
+      if (ke.key !== 'Enter') return
+      const command = parseAddCommand(input.value)
+      if (!command) {
+        // No-op — preserve input value, do not clear, do not pulse.
+        return
+      }
+      const today = todayIso()
+      const dir = vaultDir(tasks)
+      const existing = existingFilenamesFromTasks(tasks)
+      const built = buildTaskFile({
+        title: command.title,
+        tags: command.tags,
+        today,
+        existingFilenames: existing,
+      })
+      const filePath = dir ? `${dir}/${built.filename}` : built.filename
+      await window.todoz.writeFile(filePath, built.content)
+      // Append the new task in-memory so we don't depend on an async re-read.
+      const newTask: Task = {
+        slug: built.filename.replace(/\.md$/, '').replace(/-\d{4}-\d{2}-\d{2}$/, ''),
+        filePath,
+        title: command.title,
+        status: 'todo',
+        tags: command.tags,
+        created: today,
+        raw: built.content,
+        subtasks: [],
+      }
+      tasks = [...tasks, newTask]
+      input.value = ''
+      // Re-render to surface new sidebar entries / counts.
+      fullRender()
+      // Pulse entries for the just-added task: always Inbox; plus each tag entry.
+      const pulseKeys = ['inbox', ...command.tags]
+      pulseEntries(pulseKeys)
+    })
+  }
+
+  // Document-level cmd+i listener (does not depend on input being focused).
+  doc.addEventListener('keydown', (e) => {
+    const ke = e as KeyboardEvent
+    if (ke.metaKey && (ke.key === 'i' || ke.key === 'I')) {
+      ke.preventDefault()
+      const input = body.querySelector(
+        '[data-command-bar] input[type="text"]'
+      ) as HTMLInputElement | null
+      if (!input) return
+      input.value = '/add '
+      input.focus()
+    }
+  })
+
+  fullRender()
+}
+
+// Minimal CSS.escape replacement — JSDOM doesn't always expose it.
+function cssEscape(s: string): string {
+  return s.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`)
 }
 
 // Backwards-compatible thin renderer for the existing TodoList tests.

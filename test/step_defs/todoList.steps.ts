@@ -38,6 +38,30 @@ const STANDARD_FIXTURES: FixtureTodo[] = [
     },
     body: '- [ ] Read and take notes',
   },
+  {
+    path: 'test/fixtures/vault/todos/pickup-package-2026-05-04.md',
+    frontmatter: {
+      type: 'task',
+      title: 'Pickup package',
+      status: 'todo',
+      due: '2026-05-09',
+      tags: ['errands'],
+      created: '2026-05-04',
+    },
+    body: '- [ ] Bring tracking number',
+  },
+  {
+    path: 'test/fixtures/vault/todos/sync-with-mike-2026-05-04.md',
+    frontmatter: {
+      type: 'task',
+      title: 'Sync with Mike',
+      status: 'todo',
+      due: '2026-05-12',
+      tags: ['@mike'],
+      created: '2026-05-04',
+    },
+    body: '- [ ] Walk through Q2 plan',
+  },
 ]
 
 Given('the vault contains the standard fixture todos', function (this: TodozWorld) {
@@ -66,5 +90,13 @@ Then('every task title appears in due-date order', function (this: TodozWorld) {
   const titles = Array.from(this.document.querySelectorAll('[data-task-title]')).map(
     (el) => el.textContent?.trim(),
   )
-  expect(titles).to.deep.equal(['Call dentist', 'Q2 report', 'Read Anthropic paper'])
+  // Due-ascending order; undated last sorted by slug.
+  // pickup-package 2026-05-09 < call-dentist 2026-05-10 < sync-with-mike 2026-05-12 < q2-report 2026-06-01 < read-anthropic-paper (undated)
+  expect(titles).to.deep.equal([
+    'Pickup package',
+    'Call dentist',
+    'Sync with Mike',
+    'Q2 report',
+    'Read Anthropic paper',
+  ])
 })

@@ -5,15 +5,15 @@ Feature: Design and structure
     When the initial render completes
     Then the top app bar shows the brand "TaskStream" with action icons
 
-  Scenario: Sidebar shows primary navigation with Today active
+  Scenario: Sidebar shows primary navigation with Inbox active
     Given the app loads
     When the initial render completes
-    Then the left sidebar shows the navigation entries "Chat, Inbox, Today, Upcoming" with "Today" marked active
+    Then the left sidebar shows the navigation entries "Chat, Inbox, Today, Upcoming" with "Inbox" marked active
 
-  Scenario: Main header shows Today h1 above remaining count
+  Scenario: Main header shows Inbox h1 above remaining count
     Given the app loads
     When the initial render completes
-    Then the main content header shows the h1 "Today" above the remaining-count line
+    Then the main content header shows the h1 "Inbox" above the remaining-count line
 
   Scenario: Task list renders as a bordered card grouped by priority
     Given the vault contains the standard fixture todos
