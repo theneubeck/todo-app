@@ -1,11 +1,11 @@
 ---
 name: simple-plan-feature
-description: Reasoning-driven planner for new UI patterns / features. Reads the user's request and the repo, decides every open question without interviewing, writes frozen plan artifacts to features/<slug>/, surfaces conflicts and decisions for review, then commits the plan. Writes no implementation code. Use when starting a new feature where you trust the model to reason rather than walk a five-section interview.
+description: Reasoning-driven planner for new UI patterns / features. Reads the user's request and the repo, decides every open question without interviewing, writes frozen plan artifacts to features/<slug>/, then surfaces conflicts and decisions for review. Writes no implementation code and does not run git. Use when starting a new feature where you trust the model to reason rather than walk a five-section interview.
 ---
 
 # Simple-plan-feature skill
 
-You are now planning a new feature. Produce a written, **frozen** plan that the Implement and Verify agents execute without ambiguity. Write planning artifacts to disk; write no implementation code.
+You are now planning a new feature. Produce a written, **frozen** plan that the Implement and Verify agents execute without ambiguity. Write planning artifacts to disk; write no implementation code; do not run `git`.
 
 This skill is the non-interview cousin of `plan-feature`. **You do not ask the user questions section by section.** Instead, you:
 
@@ -13,7 +13,7 @@ This skill is the non-interview cousin of `plan-feature`. **You do not ask the u
 2. Reason out every open question yourself, deciding from known constraints.
 3. Write the artifacts on disk.
 4. Surface a **Conflicts & Decisions** review block at the end — call out anywhere your plan contradicts something already locked in, and anywhere you made a non-obvious judgment call.
-5. Commit the planning artifacts — but only if no genuine conflict needs the user's input first.
+5. Declare the plan done — but only if no genuine conflict needs the user's input first. The user commits to git themselves when they are happy with the plan.
 
 The plan defines work in three nested layers, outside-in:
 
@@ -311,63 +311,17 @@ After all artifacts are written, output a single review block with three sub-sec
 (none) — if there are no open questions.
 ```
 
-Be honest in this block. If you guessed and the guess might be wrong, list it under Decisions. If you can't decide without input, list it under Open questions and **do not commit**.
+Be honest in this block. If you guessed and the guess might be wrong, list it under Decisions. If you can't decide without input, list it under Open questions and **do not declare the plan done**.
 
 ---
 
-## Commit on green review
+## Finalize on green review
 
-If the review block has **zero Conflicts** and **zero Open questions**, commit the planning artifacts.
+If the review block has **zero Conflicts** and **zero Open questions**, the plan is done — declare so with the hand-off phrase below.
 
-If there are Conflicts or Open questions, **do not commit**. Output the review block and stop, declaring:
+If there are Conflicts or Open questions, declare the plan as drafted-but-blocked using the second hand-off phrase. Do not silently absorb the open question.
 
-> **Plan drafted — review before commit.**
->
-> Resolve the items in **Conflicts & Decisions** (above) and tell me how to proceed. I will not commit until they are addressed.
-
-### Staging
-
-Stage planning paths explicitly. Never `git add -A`.
-
-```bash
-git add features/<slug>/ test/features/<slug>.feature test/fixtures/<...paths from Data fixtures...>
-```
-
-If the Data fixtures section listed no fixture files, omit that path from the `git add` invocation.
-
-### Commit message
-
-Match the existing repo style — short imperative subject, optional body. Run `git log --oneline -10` to confirm the convention. The expected shape:
-
-```
-Plan <slug> feature
-
-<2–3 line summary distilled from the Pattern summary>
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
-```
-
-Use a HEREDOC for multi-line commit messages:
-
-```bash
-git commit -m "$(cat <<'EOF'
-Plan <slug> feature
-
-<body>
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
-EOF
-)"
-```
-
-### Safety rules
-
-- Never `--amend` — always create a new commit.
-- Never `--no-verify`.
-- Never push.
-- Never sweep in unrelated untracked files (personal scratchpads like `fixes.md`, `todo.md`, `scratch*`). If `git status` shows something you can't attribute to this plan, stop and ask before committing.
-
-After commit, run `git status` to confirm and report the resulting commit hash to the user.
+**This skill never runs `git`.** Do not stage, commit, push, or amend anything. The user commits to git themselves once they are happy with the plan. If you find yourself reaching for `git`, stop — that is not part of this skill.
 
 ---
 
@@ -375,21 +329,19 @@ After commit, run `git status` to confirm and report the resulting commit hash t
 
 End your response with one of two phrases.
 
-If the plan was committed:
+If the plan is finalized (no conflicts, no open questions):
 
 > **Plan complete. Ready for Implement.**
 >
-> Artifacts written and committed:
+> Artifacts written:
 > - `features/<slug>/plan.md` (frozen)
 > - `test/features/<slug>.feature` (frozen)
 > - `features/<slug>/notes.md` (mutable)
 > - `test/fixtures/<...>` (N files, if any)
->
-> Commit: `<sha>`
 
-If the plan was drafted but blocked on conflicts/open questions:
+If the plan is drafted but blocked on conflicts/open questions:
 
-> **Plan drafted — review before commit.**
+> **Plan drafted — review before finalizing.**
 >
 > See the **Conflicts & Decisions** block above. Resolve and tell me how to proceed.
 
