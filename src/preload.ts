@@ -14,4 +14,7 @@ contextBridge.exposeInMainWorld('todoz', {
     ipcRenderer.invoke('vaultz:setActiveVault', vaultPath),
   removeRecent: (vaultPath: string) =>
     ipcRenderer.invoke('vaultz:removeRecent', vaultPath),
+  getAppSettings: () => ipcRenderer.invoke('settings:getAll'),
+  setAppSetting: (key: string, value: boolean) =>
+    ipcRenderer.invoke('settings:set', key, value),
 })

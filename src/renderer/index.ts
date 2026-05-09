@@ -8,6 +8,8 @@ import {
 import { parseAddCommand } from './data/parseAddCommand'
 import { buildTaskFile } from './data/buildTaskFile'
 import { mountVaultPicker } from './views/VaultPicker'
+import { mountSettingsPanel } from './views/SettingsPanel'
+import type { AppSettings, AppSettingKey } from '../main/appSettings'
 
 declare global {
   interface Window {
@@ -25,8 +27,16 @@ declare global {
       createVault?: (vaultPath: string) => Promise<void>
       setActiveVault?: (vaultPath: string) => Promise<void>
       removeRecent?: (vaultPath: string) => Promise<void>
+      getAppSettings?: () => Promise<AppSettings>
+      setAppSetting?: (key: AppSettingKey, value: boolean) => Promise<void>
     }
   }
+}
+
+const DEFAULT_APP_SETTINGS: AppSettings = {
+  showChat: true,
+  showToday: true,
+  showUpcoming: true,
 }
 
 export const PULSE_DURATION_MS = 600
@@ -64,7 +74,7 @@ function icon(doc: Document, name: string): HTMLElement {
 function renderTopAppBar(doc: Document): HTMLElement {
   const header = el(doc, 'header', { 'data-app-bar': '' })
   const left = el(doc, 'div')
-  const brand = el(doc, 'span', { 'data-brand': '' }, 'TaskStream')
+  const brand = el(doc, 'span', { 'data-brand': '' }, 'TODO')
   left.appendChild(brand)
   header.appendChild(left)
 
@@ -73,7 +83,11 @@ function renderTopAppBar(doc: Document): HTMLElement {
   addBtn.appendChild(icon(doc, 'add'))
   actions.appendChild(addBtn)
 
-  const settingsBtn = el(doc, 'button', { type: 'button', 'aria-label': 'Settings' })
+  const settingsBtn = el(doc, 'button', {
+    type: 'button',
+    'aria-label': 'Settings',
+    'data-app-bar-settings': '',
+  })
   settingsBtn.appendChild(icon(doc, 'settings'))
   actions.appendChild(settingsBtn)
 
@@ -180,43 +194,62 @@ function uniqueTags(tasks: Task[]): { projects: string[]; people: string[] } {
   }
 }
 
+function isPrimaryEntryEnabled(
+  entry: PrimaryEntry,
+  settings: AppSettings
+): boolean {
+  if (entry.key === 'inbox') return true
+  if (entry.key === 'chat') return settings.showChat
+  if (entry.key === 'today') return settings.showToday
+  if (entry.key === 'upcoming') return settings.showUpcoming
+  return true
+}
+
 function renderSidebar(
   doc: Document,
   tasks: Task[],
-  activeFilter: Filter
+  activeFilter: Filter,
+  settings: AppSettings
 ): HTMLElement {
   const aside = el(doc, 'aside', { 'data-sidebar': '' })
   const activeKey = entryKeyForFilter(activeFilter)
   for (const entry of PRIMARY_ENTRIES) {
+    if (!isPrimaryEntryEnabled(entry, settings)) continue
     const isActive = entry.key === activeKey
     aside.appendChild(renderPrimaryEntry(doc, entry, isActive))
   }
 
   const { projects, people } = uniqueTags(tasks)
 
-  const projectsSection = el(doc, 'div', {
-    'data-section': 'projects',
-  })
-  projectsSection.appendChild(
-    el(doc, 'h3', { 'data-section-header': '' }, 'PROJECTS')
-  )
-  for (const tag of projects) {
-    const isActive = activeKey === tag
+  if (projects.length > 0) {
+    const projectsSection = el(doc, 'div', {
+      'data-section': 'projects',
+    })
     projectsSection.appendChild(
-      renderTagEntry(doc, tag, `#${tag}`, 'tag', isActive)
+      el(doc, 'h3', { 'data-section-header': '' }, 'PROJECTS')
     )
+    for (const tag of projects) {
+      const isActive = activeKey === tag
+      projectsSection.appendChild(
+        renderTagEntry(doc, tag, `#${tag}`, 'tag', isActive)
+      )
+    }
+    aside.appendChild(projectsSection)
   }
-  aside.appendChild(projectsSection)
 
-  const peopleSection = el(doc, 'div', { 'data-section': 'people' })
-  peopleSection.appendChild(el(doc, 'h3', { 'data-section-header': '' }, 'PEOPLE'))
-  for (const handle of people) {
-    const isActive = activeKey === handle
+  if (people.length > 0) {
+    const peopleSection = el(doc, 'div', { 'data-section': 'people' })
     peopleSection.appendChild(
-      renderTagEntry(doc, handle, handle, 'alternate_email', isActive)
+      el(doc, 'h3', { 'data-section-header': '' }, 'PEOPLE')
     )
+    for (const handle of people) {
+      const isActive = activeKey === handle
+      peopleSection.appendChild(
+        renderTagEntry(doc, handle, handle, 'alternate_email', isActive)
+      )
+    }
+    aside.appendChild(peopleSection)
   }
-  aside.appendChild(peopleSection)
 
   return aside
 }
@@ -648,10 +681,63 @@ async function mountMainShell(
   const expandedSlugs = new Set<string>()
   let defaultExpandSeeded = false
 
+  const getAppSettings = window.todoz.getAppSettings
+  const setAppSetting = window.todoz.setAppSetting
+  let appSettings: AppSettings = getAppSettings
+    ? await getAppSettings()
+    : { ...DEFAULT_APP_SETTINGS }
+
   const shell = el(doc, 'div', { 'data-app-shell': '' })
   shell.appendChild(renderTopAppBar(doc))
   const body = el(doc, 'div', { 'data-app-body': '' })
   shell.appendChild(body)
+
+  let openSettingsTeardown: (() => void) | null = null
+  const settingsBtn = shell.querySelector(
+    '[data-app-bar-settings]'
+  ) as HTMLElement | null
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', async (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (openSettingsTeardown) {
+        openSettingsTeardown()
+        openSettingsTeardown = null
+        return
+      }
+      if (!getAppSettings || !setAppSetting) return
+      const mounted = await mountSettingsPanel(settingsBtn, {
+        getAppSettings,
+        setAppSetting,
+        onChange: (key, value) => {
+          appSettings = { ...appSettings, [key]: value }
+          fullRender()
+        },
+      })
+      // Wrap the teardown so we can clear our local handle when the panel
+      // self-destructs via outside click.
+      const origTeardown = mounted.teardown
+      const wrappedTeardown = (): void => {
+        origTeardown()
+        if (openSettingsTeardown === wrappedTeardown) {
+          openSettingsTeardown = null
+        }
+      }
+      // Observe DOM removal to drop the local handle on outside-click teardown.
+      const observer = new (doc.defaultView as unknown as {
+        MutationObserver: typeof MutationObserver
+      }).MutationObserver(() => {
+        if (!doc.body.contains(mounted.element)) {
+          if (openSettingsTeardown === wrappedTeardown) {
+            openSettingsTeardown = null
+          }
+          observer.disconnect()
+        }
+      })
+      observer.observe(doc.body, { childList: true })
+      openSettingsTeardown = wrappedTeardown
+    })
+  }
 
   let rootMount: HTMLElement = shell
   if (vaultPath) {
@@ -792,7 +878,7 @@ async function mountMainShell(
 
   function fullRender(): void {
     body.innerHTML = ''
-    const sidebar = renderSidebar(doc, tasks, activeFilter)
+    const sidebar = renderSidebar(doc, tasks, activeFilter, appSettings)
     body.appendChild(sidebar)
     bindSidebarClicks(sidebar)
 

@@ -3,7 +3,7 @@ Feature: Design and structure
   Scenario: Top app bar shows brand and action icons
     Given the app loads
     When the initial render completes
-    Then the top app bar shows the brand "TaskStream" with action icons
+    Then the top app bar shows the brand "TODO" with action icons
 
   Scenario: Sidebar shows primary navigation with Inbox active
     Given the app loads

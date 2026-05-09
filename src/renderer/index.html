@@ -691,6 +691,55 @@
       [data-open-another-vault]:hover {
         border-color: var(--outline);
       }
+      /* Settings icon button (top app bar) */
+      [data-app-bar-settings] {
+        width: 32px;
+        height: 32px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        color: var(--on-surface);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+      [data-app-bar-settings]:hover {
+        border-color: var(--outline);
+      }
+      /* Settings panel dropdown */
+      [data-settings-panel] {
+        position: absolute;
+        min-width: 240px;
+        background: var(--surface-container-lowest);
+        border: 1px solid var(--outline-variant);
+        border-radius: 0.375rem;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        z-index: 100;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      }
+      [data-setting-toggle] {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--on-surface);
+        cursor: pointer;
+        user-select: none;
+      }
+      [data-setting-toggle] input[type='checkbox'] {
+        margin: 0;
+        width: 16px;
+        height: 16px;
+        accent-color: var(--primary);
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>

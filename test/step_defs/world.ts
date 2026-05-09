@@ -13,6 +13,7 @@ export class TodozWorld extends World {
   lastWriteFilePath?: string
   lastWriteFileContent?: string
   lastArchiveFilePath?: string
+  appSettingsPath?: string
 
   mountWindow(): void {
     this.dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {

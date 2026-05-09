@@ -11,11 +11,20 @@ import {
   setLastOpened,
 } from './main/vaultConfig'
 import { createVault } from './main/createVault'
+import {
+  readAppSettings,
+  writeAppSetting,
+  type AppSettingKey,
+} from './main/appSettings'
 
 let activeVaultPath: string | null = null
 
 function getVaultConfigPath(): string {
   return path.join(app.getPath('userData'), 'vault-config.json')
+}
+
+function getAppSettingsPath(): string {
+  return path.join(app.getPath('userData'), 'app-settings.json')
 }
 
 function resolveActiveVault(): string | null {
@@ -127,6 +136,19 @@ ipcMain.handle('vaultz:setActiveVault', (_e, vaultPath: string): void => {
 ipcMain.handle('vaultz:removeRecent', (_e, vaultPath: string): void => {
   removeRecentFromConfig(getVaultConfigPath(), vaultPath)
 })
+
+// ----- App settings IPC -----
+
+ipcMain.handle('settings:getAll', () => {
+  return readAppSettings(getAppSettingsPath())
+})
+
+ipcMain.handle(
+  'settings:set',
+  (_e, key: AppSettingKey, value: boolean): void => {
+    writeAppSetting(getAppSettingsPath(), key, value)
+  }
+)
 
 app.whenReady().then(createWindow)
 

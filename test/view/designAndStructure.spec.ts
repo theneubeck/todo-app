@@ -90,10 +90,10 @@ describe('DesignAndStructure', () => {
     dom = setup.dom
   })
 
-  it('renders the TaskStream brand in the top app bar', async () => {
+  it('renders the TODO brand in the top app bar', async () => {
     await mountApp(dom.window.document.body)
     const brand = dom.window.document.querySelector('[data-app-bar] [data-brand]')
-    expect(brand?.textContent?.trim()).to.equal('TaskStream')
+    expect(brand?.textContent?.trim()).to.equal('TODO')
   })
 
   it('renders add, settings, avatar action icons in the top app bar', async () => {
@@ -129,12 +129,12 @@ describe('DesignAndStructure', () => {
     expect(headers).to.include('PROJECTS')
   })
 
-  it('renders the PEOPLE section header in the sidebar', async () => {
+  it('hides the PEOPLE section header when no @-tags exist in the sidebar', async () => {
     await mountApp(dom.window.document.body)
     const headers = Array.from(
       dom.window.document.querySelectorAll('[data-sidebar] [data-section-header]')
     ).map((el) => el.textContent?.trim().toUpperCase())
-    expect(headers).to.include('PEOPLE')
+    expect(headers).to.not.include('PEOPLE')
   })
 
   it('renders an h1 reading Inbox in the main header', async () => {
