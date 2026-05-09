@@ -1,0 +1,309 @@
+[
+  {
+    "step": 1,
+    "label": "after /add (simple task created)",
+    "fileExists": true,
+    "frontmatterStatus": "todo",
+    "bodyLines": [],
+    "parentCheckedAttr": "false",
+    "parentCompletedAttr": null,
+    "subtasks": [],
+    "parentSaysComplete": false,
+    "allSubtasksComplete": null,
+    "match": "n/a",
+    "notes": ""
+  },
+  {
+    "step": 2,
+    "label": "after add subtask \"step 1\"",
+    "fileExists": true,
+    "frontmatterStatus": "todo",
+    "bodyLines": [
+      "- [ ] step 1"
+    ],
+    "parentCheckedAttr": "false",
+    "parentCompletedAttr": null,
+    "subtasks": [
+      {
+        "index": 0,
+        "title": "step 1",
+        "checked": "false",
+        "struck": false
+      }
+    ],
+    "parentSaysComplete": false,
+    "allSubtasksComplete": false,
+    "match": "agree",
+    "notes": ""
+  },
+  {
+    "step": 3,
+    "label": "after add subtask \"step 2\"",
+    "fileExists": true,
+    "frontmatterStatus": "todo",
+    "bodyLines": [
+      "- [ ] step 1",
+      "- [ ] step 2"
+    ],
+    "parentCheckedAttr": "false",
+    "parentCompletedAttr": null,
+    "subtasks": [
+      {
+        "index": 0,
+        "title": "step 1",
+        "checked": "false",
+        "struck": false
+      },
+      {
+        "index": 1,
+        "title": "step 2",
+        "checked": "false",
+        "struck": false
+      }
+    ],
+    "parentSaysComplete": false,
+    "allSubtasksComplete": false,
+    "match": "agree",
+    "notes": ""
+  },
+  {
+    "step": 4,
+    "label": "after check subtask \"step 1\"",
+    "fileExists": true,
+    "frontmatterStatus": "todo",
+    "bodyLines": [
+      "- [x] step 1",
+      "- [ ] step 2"
+    ],
+    "parentCheckedAttr": "true",
+    "parentCompletedAttr": null,
+    "subtasks": [
+      {
+        "index": 0,
+        "title": "step 1",
+        "checked": "true",
+        "struck": true
+      },
+      {
+        "index": 1,
+        "title": "step 2",
+        "checked": "false",
+        "struck": false
+      }
+    ],
+    "parentSaysComplete": true,
+    "allSubtasksComplete": false,
+    "match": "disagree",
+    "notes": ""
+  },
+  {
+    "step": 5,
+    "label": "after check subtask \"step 2\" (all children done)",
+    "fileExists": true,
+    "frontmatterStatus": "todo",
+    "bodyLines": [
+      "- [x] step 1",
+      "- [x] step 2"
+    ],
+    "parentCheckedAttr": "true",
+    "parentCompletedAttr": "true",
+    "subtasks": [
+      {
+        "index": 0,
+        "title": "step 1",
+        "checked": "true",
+        "struck": true
+      },
+      {
+        "index": 1,
+        "title": "step 2",
+        "checked": "true",
+        "struck": true
+      }
+    ],
+    "parentSaysComplete": true,
+    "allSubtasksComplete": true,
+    "match": "agree",
+    "notes": ""
+  },
+  {
+    "step": 6,
+    "label": "after uncheck subtask \"step 1\"",
+    "fileExists": true,
+    "frontmatterStatus": "todo",
+    "bodyLines": [
+      "- [ ] step 1",
+      "- [x] step 2"
+    ],
+    "parentCheckedAttr": "false",
+    "parentCompletedAttr": null,
+    "subtasks": [
+      {
+        "index": 0,
+        "title": "step 1",
+        "checked": "false",
+        "struck": false
+      },
+      {
+        "index": 1,
+        "title": "step 2",
+        "checked": "true",
+        "struck": true
+      }
+    ],
+    "parentSaysComplete": false,
+    "allSubtasksComplete": false,
+    "match": "agree",
+    "notes": ""
+  },
+  {
+    "step": 7,
+    "label": "after click parent checkbox (manual)",
+    "fileExists": true,
+    "frontmatterStatus": "todo",
+    "bodyLines": [
+      "- [x] step 1",
+      "- [x] step 2"
+    ],
+    "parentCheckedAttr": "true",
+    "parentCompletedAttr": "true",
+    "subtasks": [
+      {
+        "index": 0,
+        "title": "step 1",
+        "checked": "true",
+        "struck": true
+      },
+      {
+        "index": 1,
+        "title": "step 2",
+        "checked": "true",
+        "struck": true
+      }
+    ],
+    "parentSaysComplete": true,
+    "allSubtasksComplete": true,
+    "match": "agree",
+    "notes": ""
+  },
+  {
+    "step": 8,
+    "label": "after remove subtask \"step 1\"",
+    "fileExists": true,
+    "frontmatterStatus": "todo",
+    "bodyLines": [
+      "- [x] step 2"
+    ],
+    "parentCheckedAttr": "true",
+    "parentCompletedAttr": "true",
+    "subtasks": [
+      {
+        "index": 0,
+        "title": "step 2",
+        "checked": "true",
+        "struck": true
+      }
+    ],
+    "parentSaysComplete": true,
+    "allSubtasksComplete": true,
+    "match": "agree",
+    "notes": ""
+  },
+  {
+    "step": 9,
+    "label": "after remove last subtask",
+    "fileExists": true,
+    "frontmatterStatus": "todo",
+    "bodyLines": [],
+    "parentCheckedAttr": "false",
+    "parentCompletedAttr": null,
+    "subtasks": [],
+    "parentSaysComplete": false,
+    "allSubtasksComplete": null,
+    "match": "n/a",
+    "notes": ""
+  },
+  {
+    "step": 10,
+    "label": "after toggle parent of simple task",
+    "fileExists": true,
+    "frontmatterStatus": "done",
+    "bodyLines": [],
+    "parentCheckedAttr": "true",
+    "parentCompletedAttr": "true",
+    "subtasks": [],
+    "parentSaysComplete": true,
+    "allSubtasksComplete": null,
+    "match": "n/a",
+    "notes": ""
+  },
+  {
+    "step": 11,
+    "label": "after add subtask while parent was done (deferred bug)",
+    "fileExists": true,
+    "frontmatterStatus": "done",
+    "bodyLines": [
+      "- [ ] after-done subtask"
+    ],
+    "parentCheckedAttr": "false",
+    "parentCompletedAttr": null,
+    "subtasks": [
+      {
+        "index": 0,
+        "title": "after-done subtask",
+        "checked": "false",
+        "struck": false
+      }
+    ],
+    "parentSaysComplete": true,
+    "allSubtasksComplete": false,
+    "match": "disagree",
+    "notes": "subtask added to a task whose status was done — does the file/DOM reconcile?"
+  },
+  {
+    "step": 12,
+    "label": "after toggle parent off",
+    "fileExists": true,
+    "frontmatterStatus": "done",
+    "bodyLines": [
+      "- [x] after-done subtask"
+    ],
+    "parentCheckedAttr": "true",
+    "parentCompletedAttr": "true",
+    "subtasks": [
+      {
+        "index": 0,
+        "title": "after-done subtask",
+        "checked": "true",
+        "struck": true
+      }
+    ],
+    "parentSaysComplete": true,
+    "allSubtasksComplete": true,
+    "match": "agree",
+    "notes": ""
+  },
+  {
+    "step": 13,
+    "label": "after toggle parent on with one undone subtask",
+    "fileExists": true,
+    "frontmatterStatus": "done",
+    "bodyLines": [
+      "- [ ] after-done subtask"
+    ],
+    "parentCheckedAttr": "false",
+    "parentCompletedAttr": null,
+    "subtasks": [
+      {
+        "index": 0,
+        "title": "after-done subtask",
+        "checked": "false",
+        "struck": false
+      }
+    ],
+    "parentSaysComplete": true,
+    "allSubtasksComplete": false,
+    "match": "disagree",
+    "notes": ""
+  }
+]
