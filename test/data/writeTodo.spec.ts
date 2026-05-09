@@ -66,6 +66,37 @@ describe('writeTodo.toggleSubtask', () => {
     const next = toggleSubtask(raw, 0)
     expect(next).to.equal('---\nstatus: todo\n- [x] Bad fm\n')
   })
+
+  it('sets frontmatter status to done when checking the last unchecked subtask', () => {
+    const raw =
+      '---\nstatus: todo\n---\n- [x] step 1\n- [ ] step 2\n'
+    const next = toggleSubtask(raw, 1)
+    expect(next).to.match(/status:\s*done/)
+    expect(next).to.not.match(/status:\s*todo/)
+  })
+
+  it('sets frontmatter status to todo when unchecking from an all-checked state', () => {
+    const raw =
+      '---\nstatus: done\n---\n- [x] step 1\n- [x] step 2\n'
+    const next = toggleSubtask(raw, 0)
+    expect(next).to.match(/status:\s*todo/)
+    expect(next).to.not.match(/status:\s*done/)
+  })
+
+  it('preserves frontmatter status todo when not all subtasks transition to checked', () => {
+    const raw =
+      '---\nstatus: todo\n---\n- [ ] step 1\n- [ ] step 2\n- [ ] step 3\n'
+    const next = toggleSubtask(raw, 0)
+    expect(next).to.match(/status:\s*todo/)
+    expect(next).to.not.match(/status:\s*done/)
+  })
+
+  it('preserves frontmatter status doing when reconciliation does not apply', () => {
+    const raw =
+      '---\nstatus: doing\n---\n- [ ] step 1\n- [ ] step 2\n'
+    const next = toggleSubtask(raw, 0)
+    expect(next).to.match(/status:\s*doing/)
+  })
 })
 
 describe('writeTodo.removeSubtask', () => {
@@ -112,6 +143,29 @@ describe('writeTodo.removeSubtask', () => {
     const next = removeSubtask(raw, 5)
     expect(next).to.match(/- \[ \] only/)
     expect(next).to.match(/status:\s*todo/)
+  })
+
+  it('sets frontmatter status to done when remaining subtasks are all checked', () => {
+    const raw =
+      '---\nstatus: todo\n---\n- [x] step 1\n- [ ] step 2\n'
+    const next = removeSubtask(raw, 1)
+    expect(next).to.match(/status:\s*done/)
+    expect(next).to.not.match(/status:\s*todo/)
+  })
+
+  it('sets frontmatter status to todo when at least one remaining subtask is unchecked', () => {
+    const raw =
+      '---\nstatus: done\n---\n- [x] step 1\n- [x] step 2\n- [ ] step 3\n'
+    const next = removeSubtask(raw, 0)
+    expect(next).to.match(/status:\s*todo/)
+    expect(next).to.not.match(/status:\s*done/)
+  })
+
+  it('preserves frontmatter status when the body becomes empty', () => {
+    const raw =
+      '---\nstatus: done\n---\n- [x] only\n'
+    const next = removeSubtask(raw, 0)
+    expect(next).to.match(/status:\s*done/)
   })
 })
 
@@ -173,5 +227,29 @@ describe('writeTodo.addSubtask', () => {
     expect(bIdx).to.be.greaterThan(aIdx)
     expect(gIdx).to.be.greaterThan(bIdx)
     expect(dIdx).to.be.greaterThan(gIdx)
+  })
+
+  it('sets frontmatter status to todo when called on a done simple task', () => {
+    const raw = '---\nstatus: done\n---\n'
+    const next = addSubtask(raw, 'draft outline')
+    expect(next).to.match(/- \[ \] draft outline/)
+    expect(next).to.match(/status:\s*todo/)
+    expect(next).to.not.match(/status:\s*done/)
+  })
+
+  it('sets frontmatter status to todo when called on a done combined task with all checked subtasks', () => {
+    const raw =
+      '---\nstatus: done\n---\n- [x] step 1\n- [x] step 2\n'
+    const next = addSubtask(raw, 'step 3')
+    expect(next).to.match(/- \[ \] step 3/)
+    expect(next).to.match(/status:\s*todo/)
+    expect(next).to.not.match(/status:\s*done/)
+  })
+
+  it('preserves frontmatter status todo when called on a todo simple task', () => {
+    const raw = '---\nstatus: todo\n---\n'
+    const next = addSubtask(raw, 'draft outline')
+    expect(next).to.match(/- \[ \] draft outline/)
+    expect(next).to.match(/status:\s*todo/)
   })
 })

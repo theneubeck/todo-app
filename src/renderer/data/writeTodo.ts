@@ -40,6 +40,39 @@ function splitFrontmatter(raw: string): { fm: string; body: string; sep: string 
   }
 }
 
+function setStatus(raw: string, next: 'todo' | 'done'): string {
+  return raw.replace(STATUS_LINE_RE, (match, prefix, current, suffix) => {
+    // Never write over `doing` — the rule never inspects or overwrites it.
+    if (current === 'doing') return match
+    if (current === next) return match
+    return `${prefix}${next}${suffix}`
+  })
+}
+
+// Bring frontmatter `status` into agreement with the body's top-level
+// checkbox state after any body-mutating writer runs.
+//   ≥1 top-level checkbox AND every one is `[x]`  → status: done
+//   ≥1 top-level checkbox AND any is `[ ]`         → status: todo
+//   0 top-level checkboxes (empty body)            → leave status alone
+// Never writes or inspects `doing`.
+function reconcileStatus(raw: string): string {
+  const { fm, body } = splitFrontmatter(raw)
+  // Without well-formed frontmatter there is no status line to reconcile.
+  if (fm === '') return raw
+  const lines = body.split(/\r?\n/)
+  let total = 0
+  let checked = 0
+  for (const line of lines) {
+    if (classifyLine(line) === 'topCheckbox') {
+      total += 1
+      if (/^- \[x\] /.test(line)) checked += 1
+    }
+  }
+  if (total === 0) return raw
+  const target: 'todo' | 'done' = checked === total ? 'done' : 'todo'
+  return setStatus(raw, target)
+}
+
 export function toggleParent(raw: string): string {
   const flipped = flipStatus(raw)
   const { fm, body } = splitFrontmatter(flipped)
@@ -68,7 +101,7 @@ export function toggleSubtask(raw: string, index: number): string {
     }
   }
   const newBody = lines.join('\n')
-  return `${fm}${newBody}`
+  return reconcileStatus(`${fm}${newBody}`)
 }
 
 export function addSubtask(raw: string, text: string): string {
@@ -83,14 +116,14 @@ export function addSubtask(raw: string, text: string): string {
   const newLine = `- [ ] ${trimmed}`
   if (lastTopIdx === -1) {
     // No existing top-level bullets — produce a single-bullet body.
-    return `${fm}${newLine}\n`
+    return reconcileStatus(`${fm}${newLine}\n`)
   }
   const newLines = [
     ...lines.slice(0, lastTopIdx + 1),
     newLine,
     ...lines.slice(lastTopIdx + 1),
   ]
-  return `${fm}${newLines.join('\n')}`
+  return reconcileStatus(`${fm}${newLines.join('\n')}`)
 }
 
 export function removeSubtask(raw: string, index: number): string {
@@ -117,5 +150,5 @@ export function removeSubtask(raw: string, index: number): string {
     endIdx += 1
   }
   const newLines = lines.slice(0, startIdx).concat(lines.slice(endIdx))
-  return `${fm}${newLines.join('\n')}`
+  return reconcileStatus(`${fm}${newLines.join('\n')}`)
 }

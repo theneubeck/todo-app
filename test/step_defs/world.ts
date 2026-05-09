@@ -14,6 +14,11 @@ export class TodozWorld extends World {
   lastWriteFileContent?: string
   lastArchiveFilePath?: string
   appSettingsPath?: string
+  // Per-scenario list of fixture file paths created at runtime; the After
+  // hook unlinks each path. Owned by the status-reconciliation feature but
+  // safe to share — all features can opt in by pushing to this array.
+  createdFixtures: string[] = []
+  initialRemainingCount?: number
 
   mountWindow(): void {
     this.dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {

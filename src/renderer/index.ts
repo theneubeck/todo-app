@@ -790,6 +790,11 @@ async function mountMainShell(
     return out
   }
 
+  function statusFromRaw(raw: string, fallback: Task['status']): Task['status'] {
+    const m = /^\s*status:\s*(todo|doing|done)\s*$/m.exec(raw)
+    return (m?.[1] as Task['status']) ?? fallback
+  }
+
   function currentTask(slug: string): Task {
     // The task was rendered from `tasks` so the slug is always present;
     // the handler can only fire while the row is in the live DOM.
@@ -832,6 +837,7 @@ async function mountMainShell(
       updateTask(live.slug, (t) => ({
         ...t,
         raw: next,
+        status: statusFromRaw(next, t.status),
         subtasks: rebuildSubtasksFromRaw(next),
       }))
       fullRender()
@@ -853,6 +859,7 @@ async function mountMainShell(
       updateTask(live.slug, (t) => ({
         ...t,
         raw: next,
+        status: statusFromRaw(next, t.status),
         subtasks: rebuildSubtasksFromRaw(next),
       }))
       fullRender()
@@ -864,6 +871,7 @@ async function mountMainShell(
       updateTask(live.slug, (t) => ({
         ...t,
         raw: next,
+        status: statusFromRaw(next, t.status),
         subtasks: rebuildSubtasksFromRaw(next),
       }))
       // Cover both simple→combined conversion and idempotent re-expansion.
