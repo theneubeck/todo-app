@@ -159,6 +159,38 @@ describe('AddTask', () => {
     expect(input.value).to.equal('/add ')
   })
 
+  it('prepends /add to existing text when cmd+i is pressed', async () => {
+    await mountApp(dom.window.document.body)
+    const input = dom.window.document.querySelector(
+      '[data-command-bar] input[type="text"]'
+    ) as HTMLInputElement
+    input.value = 'buy milk'
+    const ev = new dom.window.KeyboardEvent('keydown', {
+      key: 'i',
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    dom.window.document.dispatchEvent(ev)
+    expect(input.value).to.equal('/add buy milk')
+  })
+
+  it('leaves the value unchanged when cmd+i is pressed and the input already starts with /add ', async () => {
+    await mountApp(dom.window.document.body)
+    const input = dom.window.document.querySelector(
+      '[data-command-bar] input[type="text"]'
+    ) as HTMLInputElement
+    input.value = '/add buy milk'
+    const ev = new dom.window.KeyboardEvent('keydown', {
+      key: 'i',
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    dom.window.document.dispatchEvent(ev)
+    expect(input.value).to.equal('/add buy milk')
+  })
+
   it('writes one task file when /add submits with a title', async () => {
     await mountApp(dom.window.document.body)
     const input = dom.window.document.querySelector(

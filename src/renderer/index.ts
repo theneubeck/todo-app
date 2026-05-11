@@ -578,14 +578,6 @@ function renderCommandBar(doc: Document): HTMLElement {
   })
   bar.appendChild(icon(doc, 'bolt'))
   const fields = el(doc, 'div', { 'data-command-bar-fields': '' })
-  const mention = el(doc, 'span', { 'data-command-chip': 'mention' })
-  mention.appendChild(icon(doc, 'alternate_email'))
-  mention.appendChild(doc.createTextNode('name'))
-  fields.appendChild(mention)
-  const tag = el(doc, 'span', { 'data-command-chip': 'tag' })
-  tag.appendChild(icon(doc, 'tag'))
-  tag.appendChild(doc.createTextNode('design'))
-  fields.appendChild(tag)
   const input = el(doc, 'input', {
     type: 'text',
     placeholder: 'Type a command or add a task...',
@@ -1061,7 +1053,10 @@ async function mountMainShell(
         '[data-command-bar] input[type="text"]'
       ) as HTMLInputElement | null
       if (!input) return
-      input.value = '/add '
+      const current = input.value
+      if (!current.startsWith('/add ')) {
+        input.value = `/add ${current}`
+      }
       input.focus()
     }
   })
