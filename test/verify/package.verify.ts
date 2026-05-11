@@ -272,6 +272,7 @@ async function run(): Promise<void> {
       app = await electron.launch({
         executablePath: executable,
         cwd: mount,
+        env: { ...process.env, NODE_ENV: 'test' },
         timeout: 30_000,
       })
       const window: Page = await app.firstWindow()

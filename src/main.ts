@@ -16,6 +16,7 @@ import {
   writeAppSetting,
   type AppSettingKey,
 } from './main/appSettings'
+import { buildWindowOptions } from './main/windowOptions'
 
 let activeVaultPath: string | null = null
 
@@ -40,15 +41,7 @@ function resolveActiveVault(): string | null {
 }
 
 function createWindow(): void {
-  const win = new BrowserWindow({
-    width: 900,
-    height: 720,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  })
+  const win = new BrowserWindow(buildWindowOptions())
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'))
 }
 
@@ -150,7 +143,10 @@ ipcMain.handle(
   }
 )
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  if (process.env.NODE_ENV === 'test' && app.dock) app.dock.hide()
+  createWindow()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
