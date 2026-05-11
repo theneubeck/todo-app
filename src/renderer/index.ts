@@ -7,6 +7,7 @@ import {
 } from './data/writeTodo'
 import { parseAddCommand } from './data/parseAddCommand'
 import { buildTaskFile } from './data/buildTaskFile'
+import { vaultDir } from './data/vaultDir'
 import { mountVaultPicker } from './views/VaultPicker'
 import { mountSettingsPanel } from './views/SettingsPanel'
 import type { AppSettings, AppSettingKey } from '../main/appSettings'
@@ -606,17 +607,6 @@ function existingFilenamesFromTasks(tasks: Task[]): string[] {
   return tasks.map((t) => splitPath(t.filePath).filename)
 }
 
-function vaultDir(tasks: Task[]): string {
-  // Derive the vault todos directory from any existing task. When the vault is
-  // empty we fall back to a relative path so writeFile still receives a sensible
-  // value; the production main process uses absolute paths.
-  for (const t of tasks) {
-    const { dir } = splitPath(t.filePath)
-    if (dir) return dir
-  }
-  return 'vault/todos'
-}
-
 // ----- Mount + interactions -----
 
 export async function mountApp(container: HTMLElement): Promise<void> {
@@ -937,7 +927,7 @@ async function mountMainShell(
           return
         }
         const today = todayIso()
-        const dir = vaultDir(tasks)
+        const dir = vaultDir(vaultPath, tasks)
         const existing = existingFilenamesFromTasks(tasks)
         const autoTags =
           activeFilter.kind === 'tag' ? [activeFilter.value] : []
@@ -1013,7 +1003,7 @@ async function mountMainShell(
         return
       }
       const today = todayIso()
-      const dir = vaultDir(tasks)
+      const dir = vaultDir(vaultPath, tasks)
       const existing = existingFilenamesFromTasks(tasks)
       const built = buildTaskFile({
         title: command.title,

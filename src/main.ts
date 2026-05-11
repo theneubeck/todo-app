@@ -17,6 +17,7 @@ import {
   type AppSettingKey,
 } from './main/appSettings'
 import { buildWindowOptions } from './main/windowOptions'
+import { isPathInsideActiveVault } from './main/writeFileGuard'
 
 let activeVaultPath: string | null = null
 
@@ -61,6 +62,12 @@ ipcMain.handle('read-todos', (): Task[] => {
 })
 
 ipcMain.handle('write-file', (_e, filePath: string, content: string): void => {
+  const vault = resolveActiveVault()
+  if (!isPathInsideActiveVault(filePath, vault)) {
+    throw new Error(
+      `write-file refused: target "${filePath}" is outside the active vault "${vault ?? '(none)'}"`
+    )
+  }
   fs.writeFileSync(filePath, content, 'utf-8')
 })
 
