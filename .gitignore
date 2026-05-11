@@ -11,6 +11,7 @@ pnpm-debug.log*
 dist/
 dist-ssr/
 build/
+release/
 coverage/
 .nyc_output/
 .env

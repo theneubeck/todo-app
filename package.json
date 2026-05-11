@@ -6,14 +6,31 @@
   "scripts": {
     "build": "node build.js",
     "start": "npm run build && electron .",
+    "package": "npm run build && electron-builder --mac dmg",
     "test": "mocha --require ts-node/register 'test/**/*.spec.ts'",
     "test:bdd": "cucumber-js",
     "test:coverage": "nyc --reporter=text --reporter=json-summary mocha --require ts-node/register 'test/**/*.spec.ts'",
     "lint": "eslint 'src/**/*.ts' 'test/**/*.ts' --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "verify:static": "npm run lint && npm run typecheck && npm run test:coverage",
-    "verify:playwright": "ts-node test/verify/todoList.verify.ts && ts-node test/verify/taskRowInteractions.verify.ts && ts-node test/verify/addSubtask.verify.ts && ts-node test/verify/vaultPicker.verify.ts && ts-node test/verify/bugFixes1.verify.ts && ts-node test/verify/statusReconciliation.verify.ts",
+    "verify:playwright": "ts-node test/verify/todoList.verify.ts && ts-node test/verify/taskRowInteractions.verify.ts && ts-node test/verify/addSubtask.verify.ts && ts-node test/verify/vaultPicker.verify.ts && ts-node test/verify/bugFixes1.verify.ts && ts-node test/verify/statusReconciliation.verify.ts && ts-node test/verify/package.verify.ts",
     "verify": "npm run verify:static && npm run build && npm run verify:playwright"
+  },
+  "build": {
+    "appId": "com.theneubeck.todoz",
+    "productName": "todoz",
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.png",
+      "category": "public.app-category.productivity"
+    }
   },
   "nyc": {
     "branches": 90,
@@ -44,6 +61,7 @@
     "@typescript-eslint/parser": "^6.18.0",
     "chai": "^4.4.0",
     "electron": "^28.1.3",
+    "electron-builder": "^26.8.1",
     "esbuild": "^0.28.0",
     "eslint": "^8.56.0",
     "jsdom": "^24.0.0",
