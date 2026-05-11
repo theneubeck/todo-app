@@ -98,7 +98,7 @@ Never start the next feature with a red bar.
 - Write fixture `.md` files in `test/fixtures/vault/todos/` that match the `vault/AGENTS.md` schema exactly
 - Mock `window.todoz` in Tallahassee tests with realistic fixture data
 - Add `data-*` attributes to DOM elements so tests can query them without relying on CSS classes
-- Take a screenshot at the end of every implement session
+- Take a screenshot at the end of every implement session — write it to `tmp/<slug>-<label>.png` (the `tmp/` directory is tracked via `.gitkeep`, its contents are gitignored)
 - Restore fixture files after toggle tests that mutate them
 
 ## Don'ts

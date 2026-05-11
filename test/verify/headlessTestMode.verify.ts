@@ -4,7 +4,7 @@
 //   1. Launch Electron with NODE_ENV=test.
 //      - Assert BrowserWindow.isVisible() === false (queried on the main process via app.evaluate).
 //      - Assert [data-brand] reads "TODO" (offscreen render still produces correct DOM).
-//      - Capture test/screenshots/headlessTestMode-rendered.png.
+//      - Capture tmp/headlessTestMode-rendered.png.
 //   2. Re-launch Electron with NODE_ENV unset (inverse case).
 //      - Assert BrowserWindow.isVisible() === true.
 //      - Close immediately (no screenshot — the inverse is "the window pops").
@@ -16,7 +16,7 @@ import fs from 'fs'
 import path from 'path'
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..')
-const SHOT_DIR = path.join(REPO_ROOT, 'test', 'screenshots')
+const SHOT_DIR = path.join(REPO_ROOT, 'tmp')
 const MAIN_ENTRY = path.join(REPO_ROOT, 'dist', 'main.js')
 
 type Result = { name: string; pass: boolean; reason: string }

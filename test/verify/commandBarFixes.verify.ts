@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..')
-const SHOT_DIR = path.join(REPO_ROOT, 'test', 'screenshots')
+const SHOT_DIR = path.join(REPO_ROOT, 'tmp')
 
 type Result = { name: string; pass: boolean; reason: string }
 const results: Result[] = []

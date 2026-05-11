@@ -17,7 +17,7 @@ import path from 'path'
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..')
 const RELEASE_DIR = path.join(REPO_ROOT, 'release')
-const SHOT_DIR = path.join(REPO_ROOT, 'test', 'screenshots')
+const SHOT_DIR = path.join(REPO_ROOT, 'tmp')
 const ASSETS_ICON = path.join(REPO_ROOT, 'assets', 'icon.png')
 
 type Result = { name: string; pass: boolean; reason: string }

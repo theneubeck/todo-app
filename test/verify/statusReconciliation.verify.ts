@@ -5,7 +5,7 @@ import path from 'path'
 const REPO_ROOT = path.resolve(__dirname, '..', '..')
 const FIX_DIR = path.join(REPO_ROOT, 'test', 'fixtures', 'vault', 'todos')
 const ARCHIVE_DIR = path.join(REPO_ROOT, 'test', 'fixtures', 'vault', 'archive', 'todos')
-const SHOT_DIR = path.join(REPO_ROOT, 'test', 'screenshots')
+const SHOT_DIR = path.join(REPO_ROOT, 'tmp')
 
 // Snapshot the fixtures directory so we can restore everything that was on
 // disk before the run, including freshly-created files we created.

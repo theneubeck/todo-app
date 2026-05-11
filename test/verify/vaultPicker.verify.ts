@@ -4,7 +4,7 @@ import os from 'os'
 import path from 'path'
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..')
-const SHOT_DIR = path.join(REPO_ROOT, 'test', 'screenshots')
+const SHOT_DIR = path.join(REPO_ROOT, 'tmp')
 
 async function run(): Promise<void> {
   fs.mkdirSync(SHOT_DIR, { recursive: true })

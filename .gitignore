@@ -43,3 +43,11 @@ Temporary Items
 # User vault — local data, not code. Keep AGENTS.md (schema reference).
 vault/*
 !vault/AGENTS.md
+
+# Throwaway test artifacts (verify-script screenshots, exploration outputs).
+# Directory tracked via .gitkeep; contents ignored.
+tmp/*
+!tmp/.gitkeep
+
+# Legacy committed screenshots — superseded by tmp/. Kept in git history.
+test/screenshots/
