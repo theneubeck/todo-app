@@ -4,7 +4,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 // to keep the preload bundle free of side-effectful imports.
 export type OllamaResult =
   | { ok: true; reply: string }
-  | { ok: false; error: string; exitCode: number }
+  | { ok: false; error: string; statusCode: number }
 
 contextBridge.exposeInMainWorld('todoz', {
   readTodos: () => ipcRenderer.invoke('read-todos'),

@@ -1,42 +1,93 @@
-// Pure helpers extracted from the `run-ollama` IPC handler. No spawn, no fs, no
-// side effects — these functions classify subprocess results and resolve the
-// model name from the environment, and are unit-testable in isolation.
+// Pure helpers for the `run-ollama` IPC handler. No fetch, no fs, no side
+// effects — these functions resolve env-var-driven configuration and build /
+// parse OpenAI-compatible HTTP request and response payloads.
 
 export type OllamaResult =
   | { ok: true; reply: string }
-  | { ok: false; error: string; exitCode: number }
-
-const STDERR_TAIL_CHARS = 200
+  | { ok: false; error: string; statusCode: number }
 
 const DEFAULT_MODEL = 'gemma4:e2b'
-
-export function classifyOllamaResult(input: {
-  exitCode: number
-  stdout: string
-  stderr: string
-}): OllamaResult {
-  const trimmed = input.stdout.trim()
-  if (input.exitCode === 0 && trimmed.length > 0) {
-    return { ok: true, reply: trimmed }
-  }
-  const stderrTail = input.stderr.slice(-STDERR_TAIL_CHARS).trim()
-  if (input.exitCode !== 0) {
-    const detail =
-      stderrTail.length > 0
-        ? stderrTail
-        : `ollama exited with code ${input.exitCode}`
-    return { ok: false, error: detail, exitCode: input.exitCode }
-  }
-  // exit 0 but empty stdout — treat as failure so the renderer can surface it.
-  const detail =
-    stderrTail.length > 0
-      ? stderrTail
-      : 'ollama produced no output'
-  return { ok: false, error: detail, exitCode: 0 }
-}
+const DEFAULT_API_URL = 'http://localhost:11434/v1/chat/completions'
+const ERROR_BODY_TAIL_CHARS = 200
 
 export function resolveOllamaModel(env: NodeJS.ProcessEnv): string {
   const v = env.OLLAMA_MODEL
   if (typeof v === 'string' && v.length > 0) return v
   return DEFAULT_MODEL
+}
+
+export function resolveOllamaApiUrl(env: NodeJS.ProcessEnv): string {
+  const v = env.OLLAMA_API_URL
+  if (typeof v === 'string' && v.length > 0) return v
+  return DEFAULT_API_URL
+}
+
+type OllamaMessage = { role: 'system' | 'user'; content: string }
+
+export function buildOllamaRequest(input: {
+  apiUrl: string
+  model: string
+  systemPrompt: string
+  userPrompt: string
+}): { url: string; init: RequestInit } {
+  const messages: OllamaMessage[] = []
+  if (input.systemPrompt.trim().length > 0) {
+    messages.push({ role: 'system', content: input.systemPrompt })
+  }
+  messages.push({ role: 'user', content: input.userPrompt })
+  const body = JSON.stringify({
+    model: input.model,
+    messages,
+    stream: false,
+  })
+  return {
+    url: input.apiUrl,
+    init: {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    },
+  }
+}
+
+export function parseOllamaResponse(input: {
+  status: number
+  body: string
+}): OllamaResult {
+  if (input.status !== 200) {
+    const tail = input.body.slice(-ERROR_BODY_TAIL_CHARS).trim()
+    const detail =
+      tail.length > 0
+        ? tail
+        : `ollama API returned status ${input.status}`
+    return { ok: false, error: detail, statusCode: input.status }
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(input.body)
+  } catch {
+    return {
+      ok: false,
+      error: 'invalid JSON body from API',
+      statusCode: 200,
+    }
+  }
+  const choices = (parsed as { choices?: unknown }).choices
+  if (!Array.isArray(choices) || choices.length === 0) {
+    return {
+      ok: false,
+      error: 'empty or malformed response',
+      statusCode: 200,
+    }
+  }
+  const first = choices[0] as { message?: { content?: unknown } } | undefined
+  const content = first?.message?.content
+  if (typeof content !== 'string' || content.trim().length === 0) {
+    return {
+      ok: false,
+      error: 'empty or malformed response',
+      statusCode: 200,
+    }
+  }
+  return { ok: true, reply: content.trim() }
 }

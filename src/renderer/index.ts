@@ -14,7 +14,7 @@ import type { AppSettings, AppSettingKey } from '../main/appSettings'
 
 export type OllamaResult =
   | { ok: true; reply: string }
-  | { ok: false; error: string; exitCode: number }
+  | { ok: false; error: string; statusCode: number }
 
 declare global {
   interface Window {

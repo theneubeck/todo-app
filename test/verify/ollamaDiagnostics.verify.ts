@@ -71,7 +71,7 @@ async function run(): Promise<void> {
       ipcMain.handle('run-ollama', async () => ({
         ok: false,
         error: errText,
-        exitCode: 1,
+        statusCode: 500,
       }))
     }, ERROR_TEXT)
 

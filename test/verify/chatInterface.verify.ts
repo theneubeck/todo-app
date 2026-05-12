@@ -10,15 +10,19 @@
 //   4. data-command-mode flips between "chat" (empty) and "command" (slash).
 // Captures tmp/chatInterface-after-send.png at the pending state.
 //
-// Ollama may or may not be installed on the host; the pending state is the
-// observable contract this feature owns. The actual Ollama response is out
-// of scope for this verify — the renderer-side state is independent of the
-// main-process spawn.
+// To make this hermetic (independent of whether a real Ollama server is
+// listening on localhost:11434), the script boots a tiny Node HTTP stub on
+// an ephemeral port and points the renderer at it via OLLAMA_API_URL. The
+// stub *holds* incoming requests — it queues a resolver per request rather
+// than responding immediately. This lets us assert the pending bubble is
+// rendered (AC2/AC3) before releasing the response and asserting the
+// resolved bubble (AC3).
 //
 // Per the frozen plan in features/chat-interface/plan.md.
 
 import { _electron as electron, ElectronApplication, Page } from 'playwright'
 import fs from 'fs'
+import http from 'http'
 import os from 'os'
 import path from 'path'
 
@@ -32,6 +36,60 @@ function record(name: string, pass: boolean, reason: string): void {
   results.push({ name, pass, reason })
   const tag = pass ? 'PASS' : 'FAIL'
   console.log(`[${tag}] ${name}: ${reason}`)
+}
+
+type Pending = (body: string) => void
+
+function startStubServer(): Promise<{
+  port: number
+  pending: Pending[]
+  close: () => Promise<void>
+}> {
+  return new Promise((resolve, reject) => {
+    const pending: Pending[] = []
+    const server = http.createServer((req, res) => {
+      // Drain the request body but discard it — the chat-interface verify
+      // does not care about the POST body shape (that's covered by
+      // ollamaHttp.verify.ts). The important thing is that we *hold* the
+      // response until the script explicitly releases it.
+      req.on('data', () => {
+        // discard
+      })
+      req.on('end', () => {
+        pending.push((replyBody: string) => {
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(replyBody)
+        })
+      })
+    })
+    server.on('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address()
+      if (!addr || typeof addr === 'string') {
+        reject(new Error('failed to determine ephemeral port'))
+        return
+      }
+      resolve({
+        port: addr.port,
+        pending,
+        close: () =>
+          new Promise<void>((resolveClose) => {
+            // Release any still-held responses so close() does not hang.
+            while (pending.length > 0) {
+              const next = pending.shift()
+              if (next) {
+                try {
+                  next('{"choices":[{"message":{"content":""}}]}')
+                } catch {
+                  // ignore — connection may already be torn down
+                }
+              }
+            }
+            server.close(() => resolveClose())
+          }),
+      })
+    })
+  })
 }
 
 async function run(): Promise<void> {
@@ -54,12 +112,19 @@ async function run(): Promise<void> {
     'utf-8'
   )
 
+  const stub = await startStubServer()
+  const apiUrl = `http://127.0.0.1:${stub.port}/v1/chat/completions`
+
   let app: ElectronApplication | undefined
   try {
     app = await electron.launch({
       args: [MAIN_ENTRY, `--user-data-dir=${tmpUserData}`],
       cwd: REPO_ROOT,
-      env: { ...process.env, NODE_ENV: 'test' },
+      env: {
+        ...process.env,
+        NODE_ENV: 'test',
+        OLLAMA_API_URL: apiUrl,
+      },
       timeout: 30_000,
     })
     const window: Page = await app.firstWindow()
@@ -134,6 +199,13 @@ async function run(): Promise<void> {
       `user bubble text = "${userText ?? '(null)'}"`
     )
 
+    // Assert the pending bubble is rendered. Because the stub server holds
+    // its response, the renderer's pending bubble must still be in the DOM
+    // when we observe it.
+    await window.waitForSelector('[data-message="assistant"][data-pending]', {
+      state: 'attached',
+      timeout: 2_000,
+    })
     const pending = await window
       .locator('[data-message="assistant"][data-pending]')
       .count()
@@ -146,6 +218,36 @@ async function run(): Promise<void> {
     const shot = path.join(SHOT_DIR, 'chatInterface-after-send.png')
     await window.screenshot({ path: shot, fullPage: true })
     console.log(`Screenshot captured at ${shot}`)
+
+    // Release the held response and assert the assistant bubble resolves.
+    // Wait for the request to land (network round-trip is async).
+    const start = Date.now()
+    while (stub.pending.length === 0 && Date.now() - start < 5_000) {
+      await new Promise((r) => setTimeout(r, 20))
+    }
+    const respond = stub.pending.shift()
+    record(
+      'AC3: stub server received the chat POST',
+      respond !== undefined,
+      `held responses = ${respond ? 1 : 0}`
+    )
+    if (respond) {
+      respond('{"choices":[{"message":{"content":"hi there"}}]}')
+      await window.waitForSelector(
+        '[data-message="assistant"]:not([data-pending]):not([data-error]) [data-message-text]',
+        { state: 'attached', timeout: 5_000 }
+      )
+      const replyText = await window
+        .locator(
+          '[data-message="assistant"]:not([data-pending]):not([data-error]) [data-message-text]'
+        )
+        .textContent()
+      record(
+        'AC3: pending bubble is replaced by the assistant reply',
+        replyText?.trim() === 'hi there',
+        `assistant bubble text = "${replyText ?? '(null)'}"`
+      )
+    }
   } catch (err) {
     record(
       'chat-interface verify scenario',
@@ -154,6 +256,7 @@ async function run(): Promise<void> {
     )
   } finally {
     if (app) await app.close().catch(() => undefined)
+    await stub.close().catch(() => undefined)
     fs.rmSync(tmpUserData, { recursive: true, force: true })
   }
 

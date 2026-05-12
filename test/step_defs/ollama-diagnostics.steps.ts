@@ -17,7 +17,7 @@ Given(
     this.nextOllamaResolveWith = {
       ok: false,
       error: errorText,
-      exitCode: 1,
+      statusCode: 500,
     }
   }
 )

@@ -9,7 +9,7 @@ export interface FixtureTodo {
 
 export type OllamaResult =
   | { ok: true; reply: string }
-  | { ok: false; error: string; exitCode: number }
+  | { ok: false; error: string; statusCode: number }
 
 export type OllamaResolveInput = string | OllamaResult
 

@@ -5,7 +5,7 @@ import type { Task } from '../../src/renderer/data/parseTodo'
 import { mountApp } from '../../src/renderer/index'
 
 type OllamaSuccess = { ok: true; reply: string }
-type OllamaFailure = { ok: false; error: string; exitCode: number }
+type OllamaFailure = { ok: false; error: string; statusCode: number }
 type OllamaResult = OllamaSuccess | OllamaFailure
 
 type OllamaCall = {
@@ -91,7 +91,7 @@ async function driveSendAndFail(
   todoz.__ollamaCalls[0].resolve({
     ok: false,
     error: errorText,
-    exitCode: 1,
+    statusCode: 500,
   })
   await tick(20)
 }
