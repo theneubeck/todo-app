@@ -210,10 +210,11 @@ function renderSidebar(
   doc: Document,
   tasks: Task[],
   activeFilter: Filter,
-  settings: AppSettings
+  settings: AppSettings,
+  chatActive: boolean
 ): HTMLElement {
   const aside = el(doc, 'aside', { 'data-sidebar': '' })
-  const activeKey = entryKeyForFilter(activeFilter)
+  const activeKey = chatActive ? 'chat' : entryKeyForFilter(activeFilter)
   for (const entry of PRIMARY_ENTRIES) {
     if (!isPrimaryEntryEnabled(entry, settings)) continue
     const isActive = entry.key === activeKey
@@ -576,6 +577,7 @@ function renderCommandBar(doc: Document): HTMLElement {
   const bar = el(doc, 'div', {
     'data-command-bar': '',
     'data-pinned': 'bottom',
+    'data-command-mode': 'chat',
   })
   bar.appendChild(icon(doc, 'bolt'))
   const fields = el(doc, 'div', { 'data-command-bar-fields': '' })
@@ -585,9 +587,45 @@ function renderCommandBar(doc: Document): HTMLElement {
   })
   fields.appendChild(input)
   bar.appendChild(fields)
-  const hint = el(doc, 'span', { 'data-shortcut-hint': '' }, 'CMD + K')
+  const hint = el(doc, 'span', { 'data-shortcut-hint': '' }, 'Enter to send')
   bar.appendChild(hint)
   return bar
+}
+
+// ----- Chat view -----
+
+type ChatMessage =
+  | { role: 'user'; text: string }
+  | { role: 'assistant'; text: string }
+  | { role: 'assistant'; pending: true }
+
+function renderChatView(doc: Document, messages: ChatMessage[]): HTMLElement {
+  const view = el(doc, 'div', { 'data-chat-view': '' })
+  const thread = el(doc, 'div', { 'data-chat-thread': '' })
+  for (const msg of messages) {
+    thread.appendChild(renderMessage(doc, msg))
+  }
+  view.appendChild(thread)
+  return view
+}
+
+function renderMessage(doc: Document, msg: ChatMessage): HTMLElement {
+  if (msg.role === 'user') {
+    const bubble = el(doc, 'div', { 'data-message': 'user' })
+    bubble.appendChild(el(doc, 'span', { 'data-message-text': '' }, msg.text))
+    return bubble
+  }
+  // assistant
+  if ('pending' in msg) {
+    const bubble = el(doc, 'div', {
+      'data-message': 'assistant',
+      'data-pending': 'true',
+    })
+    return bubble
+  }
+  const bubble = el(doc, 'div', { 'data-message': 'assistant' })
+  bubble.appendChild(el(doc, 'span', { 'data-message-text': '' }, msg.text))
+  return bubble
 }
 
 // ----- Helpers -----
@@ -662,6 +700,9 @@ async function mountMainShell(
   let activeFilter: Filter = { kind: 'inbox' }
   const expandedSlugs = new Set<string>()
   let defaultExpandSeeded = false
+  // Chat state — session-only, lives in the closure across re-renders.
+  let chatActive = false
+  let chatMessages: ChatMessage[] = []
 
   const getAppSettings = window.todoz.getAppSettings
   const setAppSetting = window.todoz.setAppSetting
@@ -868,25 +909,29 @@ async function mountMainShell(
 
   function fullRender(): void {
     body.innerHTML = ''
-    const sidebar = renderSidebar(doc, tasks, activeFilter, appSettings)
+    const sidebar = renderSidebar(doc, tasks, activeFilter, appSettings, chatActive)
     body.appendChild(sidebar)
     bindSidebarClicks(sidebar)
 
     const main = el(doc, 'main', { 'data-main': '' })
-    const visible = visibleTasks()
-    const remaining = visible.filter((t) => t.status !== 'done').length
-    main.appendChild(renderMainHeader(doc, remaining, activeFilter))
-    // Seed default expansion once: the very first task in the visible list
-    // is rendered expanded on initial mount (matches the legacy chrome
-    // behavior). Subsequent renders honor explicit expandedSlugs only.
-    if (!defaultExpandSeeded) {
-      if (visible.length > 0) {
-        expandedSlugs.add(visible[0].slug)
+    if (chatActive) {
+      main.appendChild(renderChatView(doc, chatMessages))
+    } else {
+      const visible = visibleTasks()
+      const remaining = visible.filter((t) => t.status !== 'done').length
+      main.appendChild(renderMainHeader(doc, remaining, activeFilter))
+      // Seed default expansion once: the very first task in the visible list
+      // is rendered expanded on initial mount (matches the legacy chrome
+      // behavior). Subsequent renders honor explicit expandedSlugs only.
+      if (!defaultExpandSeeded) {
+        if (visible.length > 0) {
+          expandedSlugs.add(visible[0].slug)
+        }
+        defaultExpandSeeded = true
       }
-      defaultExpandSeeded = true
+      main.appendChild(renderTaskCard(doc, visible, expandedSlugs, renderCtx))
+      main.appendChild(renderAddTaskAffordance())
     }
-    main.appendChild(renderTaskCard(doc, visible, expandedSlugs, renderCtx))
-    main.appendChild(renderAddTaskAffordance())
     main.appendChild(renderCommandBar(doc))
     bindCommandBar(main)
     body.appendChild(main)
@@ -963,11 +1008,16 @@ async function mountMainShell(
     const entries = sidebar.querySelectorAll('[data-sidebar-entry]')
     entries.forEach((entry) => {
       const key = entry.getAttribute('data-sidebar-entry') as string
-      // Today / Upcoming / Chat are inert in this feature.
-      if (key === 'today' || key === 'upcoming' || key === 'chat') return
+      // Today / Upcoming remain inert. Chat now activates the chat view.
+      if (key === 'today' || key === 'upcoming') return
       entry.addEventListener('click', (e) => {
         e.preventDefault()
-        activeFilter = filterFromEntryKey(key)
+        if (key === 'chat') {
+          chatActive = true
+        } else {
+          chatActive = false
+          activeFilter = filterFromEntryKey(key)
+        }
         fullRender()
       })
     })
@@ -990,48 +1040,101 @@ async function mountMainShell(
   }
 
   function bindCommandBar(main: HTMLElement): void {
-    const input = main.querySelector(
-      '[data-command-bar] input[type="text"]'
-    ) as HTMLInputElement | null
-    if (!input) return
+    // The command bar is always rendered by fullRender(); these queries cannot
+    // be null in production, so we cast directly rather than guarding.
+    const bar = main.querySelector('[data-command-bar]') as HTMLElement
+    const input = bar.querySelector(
+      'input[type="text"]'
+    ) as HTMLInputElement
+    const hint = bar.querySelector('[data-shortcut-hint]') as HTMLElement
+
+    function updateMode(): void {
+      const isCommand = input.value.startsWith('/')
+      bar.setAttribute('data-command-mode', isCommand ? 'command' : 'chat')
+      hint.textContent = isCommand ? 'Enter to run' : 'Enter to send'
+    }
+    // Initialize from current value (covers re-render with retained input).
+    updateMode()
+    input.addEventListener('input', () => {
+      updateMode()
+    })
+
     input.addEventListener('keydown', async (e) => {
       const ke = e as KeyboardEvent
       if (ke.key !== 'Enter') return
-      const command = parseAddCommand(input.value)
-      if (!command) {
-        // No-op — preserve input value, do not clear, do not pulse.
-        return
+      // Sync mode from the live value at Enter time. The attribute is the
+      // visual reflection (set on every input event) but the value is the
+      // source of truth — guarding against programmatic value changes that
+      // bypass input events.
+      updateMode()
+      const mode = bar.getAttribute('data-command-mode')
+      if (mode === 'command') {
+        await handleCommandEnter(input)
+      } else {
+        await handleChatEnter(input)
       }
-      const today = todayIso()
-      const dir = vaultDir(vaultPath, tasks)
-      const existing = existingFilenamesFromTasks(tasks)
-      const built = buildTaskFile({
-        title: command.title,
-        tags: command.tags,
-        today,
-        existingFilenames: existing,
-      })
-      const filePath = dir ? `${dir}/${built.filename}` : built.filename
-      await window.todoz.writeFile(filePath, built.content)
-      // Append the new task in-memory so we don't depend on an async re-read.
-      const newTask: Task = {
-        slug: built.filename.replace(/\.md$/, '').replace(/-\d{4}-\d{2}-\d{2}$/, ''),
-        filePath,
-        title: command.title,
-        status: 'todo',
-        tags: command.tags,
-        created: today,
-        raw: built.content,
-        subtasks: [],
-      }
-      tasks = [...tasks, newTask]
-      input.value = ''
-      // Re-render to surface new sidebar entries / counts.
-      fullRender()
-      // Pulse entries for the just-added task: always Inbox; plus each tag entry.
-      const pulseKeys = ['inbox', ...command.tags]
-      pulseEntries(pulseKeys)
     })
+  }
+
+  async function handleCommandEnter(input: HTMLInputElement): Promise<void> {
+    const command = parseAddCommand(input.value)
+    if (!command) {
+      // No-op — preserve input value, do not clear, do not pulse.
+      return
+    }
+    const today = todayIso()
+    const dir = vaultDir(vaultPath, tasks)
+    const existing = existingFilenamesFromTasks(tasks)
+    const built = buildTaskFile({
+      title: command.title,
+      tags: command.tags,
+      today,
+      existingFilenames: existing,
+    })
+    const filePath = dir ? `${dir}/${built.filename}` : built.filename
+    await window.todoz.writeFile(filePath, built.content)
+    // Append the new task in-memory so we don't depend on an async re-read.
+    const newTask: Task = {
+      slug: built.filename.replace(/\.md$/, '').replace(/-\d{4}-\d{2}-\d{2}$/, ''),
+      filePath,
+      title: command.title,
+      status: 'todo',
+      tags: command.tags,
+      created: today,
+      raw: built.content,
+      subtasks: [],
+    }
+    tasks = [...tasks, newTask]
+    input.value = ''
+    // Re-render to surface new sidebar entries / counts.
+    fullRender()
+    // Pulse entries for the just-added task: always Inbox; plus each tag entry.
+    const pulseKeys = ['inbox', ...command.tags]
+    pulseEntries(pulseKeys)
+  }
+
+  async function handleChatEnter(input: HTMLInputElement): Promise<void> {
+    const text = input.value.trim()
+    if (text.length === 0) return
+    chatActive = true
+    const userMsg: ChatMessage = { role: 'user', text }
+    const pendingMsg: ChatMessage = { role: 'assistant', pending: true }
+    chatMessages = [...chatMessages, userMsg, pendingMsg]
+    input.value = ''
+    fullRender()
+    // Fire Ollama after the pending render so tests / users see the pending bubble.
+    const reply = await window.todoz.runOllama(text)
+    // Replace the pending bubble (identified by reference) with the resolved
+    // assistant message. If the bubble was removed elsewhere, do nothing.
+    const idx = chatMessages.indexOf(pendingMsg)
+    if (idx === -1) return
+    const resolved: ChatMessage = { role: 'assistant', text: reply }
+    chatMessages = [
+      ...chatMessages.slice(0, idx),
+      resolved,
+      ...chatMessages.slice(idx + 1),
+    ]
+    fullRender()
   }
 
   // Document-level cmd+i listener (does not depend on input being focused).

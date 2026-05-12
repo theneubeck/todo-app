@@ -84,13 +84,13 @@ ipcMain.handle('archive-file', (_e, filename: string): void => {
 
 ipcMain.handle('run-ollama', (_e, prompt: string): Promise<string> => {
   return new Promise((resolve) => {
-    const agentsMd = fs.existsSync('AGENTS.md')
-      ? fs.readFileSync('AGENTS.md', 'utf-8')
+    const systemPrompt = fs.existsSync('VAULT.md')
+      ? fs.readFileSync('VAULT.md', 'utf-8')
       : ''
     const proc = spawn('ollama', [
       'run',
       'gemma4:12b',
-      `${agentsMd}\n\n---\n\n${prompt}`,
+      `${systemPrompt}\n\n---\n\n${prompt}`,
     ])
     let out = ''
     proc.stdout.on('data', (d: Buffer) => {

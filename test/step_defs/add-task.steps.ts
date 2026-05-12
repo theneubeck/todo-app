@@ -117,7 +117,10 @@ When('the user presses Enter', async function (this: TodozWorld) {
 
 When(
   'the user clicks the {string} sidebar entry',
-  function (this: TodozWorld, label: string) {
+  async function (this: TodozWorld, label: string) {
+    if (!this.dom) {
+      await bootstrap(this)
+    }
     const entry = findEntryByLabel(this, label)
     expect(entry, `sidebar entry with label "${label}"`).to.not.equal(null)
     entry!.click()

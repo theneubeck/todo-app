@@ -223,10 +223,10 @@ describe('DesignAndStructure', () => {
     expect(input?.placeholder).to.equal('Type a command or add a task...')
   })
 
-  it('shows the CMD + K hint on the right of the command bar', async () => {
+  it('shows the Enter-to-send hint on the right of the command bar', async () => {
     await mountApp(dom.window.document.body)
     const hint = dom.window.document.querySelector('[data-command-bar] [data-shortcut-hint]')
-    expect(hint?.textContent?.trim()).to.equal('CMD + K')
+    expect(hint?.textContent?.trim()).to.equal('Enter to send')
   })
 
   it('renders combined task rows with no parent checkbox wrapper', async () => {

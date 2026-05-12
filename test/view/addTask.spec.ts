@@ -471,6 +471,9 @@ describe('AddTask', () => {
   })
 
   it('does not write when Enter is pressed on a non-add input value', async () => {
+    // Note: non-slash input is now routed to the chat handler (see
+    // features/chat-interface) — the input value is consumed and cleared.
+    // The add-task contract here is that no file is written.
     await mountApp(dom.window.document.body)
     const input = dom.window.document.querySelector(
       '[data-command-bar] input[type="text"]'
@@ -485,7 +488,6 @@ describe('AddTask', () => {
     )
     await tick(10)
     expect(todoz.__writes.length).to.equal(0)
-    expect(input.value).to.equal('hello world')
   })
 
   it('keeps the active filter unchanged after submit', async () => {

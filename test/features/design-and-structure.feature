@@ -28,4 +28,4 @@ Feature: Design and structure
   Scenario: Command bar pinned at the bottom shows placeholder and shortcut hint
     Given the app loads
     When the initial render completes
-    Then a command bar pinned to the bottom shows the placeholder "Type a command or add a task..." with the "CMD + K" hint
+    Then a command bar pinned to the bottom shows the placeholder "Type a command or add a task..." with the "Enter to send" hint
