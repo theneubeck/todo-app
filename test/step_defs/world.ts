@@ -7,6 +7,17 @@ export interface FixtureTodo {
   body: string
 }
 
+export type OllamaResult =
+  | { ok: true; reply: string }
+  | { ok: false; error: string; exitCode: number }
+
+export type OllamaResolveInput = string | OllamaResult
+
+function normalizeOllamaResolve(input: OllamaResolveInput): OllamaResult {
+  if (typeof input === 'string') return { ok: true, reply: input }
+  return input
+}
+
 export class TodozWorld extends World {
   fixtures: FixtureTodo[] = []
   dom?: JSDOM
@@ -24,7 +35,15 @@ export class TodozWorld extends World {
   // pending Promise so the verifier can observe the pending state before
   // resolution.
   ollamaCallCount = 0
-  resolveOllama: ((text: string) => void) | null = null
+  // The world's resolver accepts either a bare string (back-compat with the
+  // chat-interface tests written against `Promise<string>`) or the new
+  // result-object shape. The renderer normalizes both.
+  resolveOllama: ((input: OllamaResolveInput) => void) | null = null
+  // The next runOllama call resolves with this preset value if non-null
+  // (used by the ollama-diagnostics failure scenarios). After it is consumed
+  // it is reset to null so subsequent calls fall back to the controllable
+  // pending-promise path.
+  nextOllamaResolveWith: OllamaResolveInput | null = null
 
   mountWindow(): void {
     this.dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
@@ -33,6 +52,7 @@ export class TodozWorld extends World {
     })
     this.ollamaCallCount = 0
     this.resolveOllama = null
+    this.nextOllamaResolveWith = null
     ;(this.dom.window as unknown as { todoz: unknown }).todoz = {
       readTodos: async () => this.fixtures,
       writeFile: async (path: string, content: string) => {
@@ -42,10 +62,17 @@ export class TodozWorld extends World {
       archiveFile: async (path: string) => {
         this.lastArchiveFilePath = path
       },
-      runOllama: (): Promise<string> => {
+      runOllama: (): Promise<OllamaResult> => {
         this.ollamaCallCount += 1
-        return new Promise<string>((resolve) => {
-          this.resolveOllama = resolve
+        if (this.nextOllamaResolveWith !== null) {
+          const preset = this.nextOllamaResolveWith
+          this.nextOllamaResolveWith = null
+          return Promise.resolve(normalizeOllamaResolve(preset))
+        }
+        return new Promise<OllamaResult>((resolve) => {
+          this.resolveOllama = (input: OllamaResolveInput) => {
+            resolve(normalizeOllamaResolve(input))
+          }
         })
       },
     }

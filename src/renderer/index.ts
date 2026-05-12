@@ -12,13 +12,17 @@ import { mountVaultPicker } from './views/VaultPicker'
 import { mountSettingsPanel } from './views/SettingsPanel'
 import type { AppSettings, AppSettingKey } from '../main/appSettings'
 
+export type OllamaResult =
+  | { ok: true; reply: string }
+  | { ok: false; error: string; exitCode: number }
+
 declare global {
   interface Window {
     todoz: {
       readTodos: () => Promise<Task[]>
       writeFile: (filePath: string, content: string) => Promise<void>
       archiveFile?: (filename: string) => Promise<void>
-      runOllama: (prompt: string) => Promise<string>
+      runOllama: (prompt: string) => Promise<OllamaResult | string>
       today?: string
       getVaultConfig?: () => Promise<{
         lastOpened: string | null
@@ -597,6 +601,7 @@ function renderCommandBar(doc: Document): HTMLElement {
 type ChatMessage =
   | { role: 'user'; text: string }
   | { role: 'assistant'; text: string }
+  | { role: 'assistant'; text: string; error: true }
   | { role: 'assistant'; pending: true }
 
 function renderChatView(doc: Document, messages: ChatMessage[]): HTMLElement {
@@ -623,7 +628,9 @@ function renderMessage(doc: Document, msg: ChatMessage): HTMLElement {
     })
     return bubble
   }
-  const bubble = el(doc, 'div', { 'data-message': 'assistant' })
+  const attrs: Record<string, string> = { 'data-message': 'assistant' }
+  if ('error' in msg && msg.error) attrs['data-error'] = 'true'
+  const bubble = el(doc, 'div', attrs)
   bubble.appendChild(el(doc, 'span', { 'data-message-text': '' }, msg.text))
   return bubble
 }
@@ -1123,12 +1130,20 @@ async function mountMainShell(
     input.value = ''
     fullRender()
     // Fire Ollama after the pending render so tests / users see the pending bubble.
-    const reply = await window.todoz.runOllama(text)
+    const result = await window.todoz.runOllama(text)
+    // Back-compat: older callers (and some tests) resolve with a bare string.
+    // Wrap it as a successful result so downstream branching is uniform.
+    const normalized: OllamaResult =
+      typeof result === 'string'
+        ? { ok: true, reply: result }
+        : result
     // Replace the pending bubble (identified by reference) with the resolved
     // assistant message. If the bubble was removed elsewhere, do nothing.
     const idx = chatMessages.indexOf(pendingMsg)
     if (idx === -1) return
-    const resolved: ChatMessage = { role: 'assistant', text: reply }
+    const resolved: ChatMessage = normalized.ok
+      ? { role: 'assistant', text: normalized.reply }
+      : { role: 'assistant', text: normalized.error, error: true }
     chatMessages = [
       ...chatMessages.slice(0, idx),
       resolved,

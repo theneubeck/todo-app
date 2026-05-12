@@ -567,6 +567,47 @@
         border-radius: 4px;
         padding: 4px 6px;
       }
+      /* Chat view */
+      [data-chat-view] {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      [data-chat-thread] {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      [data-message] {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 0.25rem;
+        font-size: 14px;
+        max-width: 80%;
+      }
+      [data-message='user'] {
+        align-self: flex-end;
+        background: var(--secondary-container);
+        color: var(--on-secondary-container);
+      }
+      [data-message='assistant'] {
+        align-self: flex-start;
+        background: var(--surface-container-low);
+        color: var(--on-surface);
+      }
+      [data-message='assistant'][data-pending]::after {
+        content: '...';
+        color: var(--on-surface-variant);
+      }
+      [data-message='assistant'][data-error] {
+        background: var(--error-container);
+        color: var(--on-error-container);
+        border-radius: 0.25rem;
+      }
+      [data-message='assistant'][data-error] [data-message-text] {
+        color: var(--on-error-container);
+      }
       /* Vault picker */
       [data-vault-picker] {
         display: flex;

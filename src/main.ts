@@ -18,6 +18,11 @@ import {
 } from './main/appSettings'
 import { buildWindowOptions } from './main/windowOptions'
 import { isPathInsideActiveVault } from './main/writeFileGuard'
+import {
+  classifyOllamaResult,
+  resolveOllamaModel,
+  type OllamaResult,
+} from './main/ollamaRun'
 
 let activeVaultPath: string | null = null
 
@@ -82,22 +87,57 @@ ipcMain.handle('archive-file', (_e, filename: string): void => {
   fs.renameSync(src, dest)
 })
 
-ipcMain.handle('run-ollama', (_e, prompt: string): Promise<string> => {
+ipcMain.handle('run-ollama', (_e, prompt: string): Promise<OllamaResult> => {
   return new Promise((resolve) => {
     const systemPrompt = fs.existsSync('VAULT.md')
       ? fs.readFileSync('VAULT.md', 'utf-8')
       : ''
-    const proc = spawn('ollama', [
-      'run',
-      'gemma4:12b',
-      `${systemPrompt}\n\n---\n\n${prompt}`,
-    ])
-    let out = ''
+    const model = resolveOllamaModel(process.env)
+    const promptLength = prompt.length
+    const startedAt = Date.now()
+    console.log(`[ollama] model=${model} promptLength=${promptLength}`)
+    let proc
+    try {
+      proc = spawn('ollama', [
+        'run',
+        model,
+        `${systemPrompt}\n\n---\n\n${prompt}`,
+      ])
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.log(`[ollama] spawn error: ${message}`)
+      resolve({ ok: false, error: message, exitCode: -1 })
+      return
+    }
+    let stdout = ''
+    let stderr = ''
     proc.stdout.on('data', (d: Buffer) => {
-      out += d.toString()
+      stdout += d.toString()
     })
-    proc.on('close', () => resolve(out))
-    proc.on('error', () => resolve(''))
+    proc.stderr.on('data', (d: Buffer) => {
+      const chunk = d.toString()
+      stderr += chunk
+      // Log each non-empty stderr line as it arrives so logs are tailable.
+      for (const line of chunk.split(/\r?\n/)) {
+        if (line.length > 0) console.log(`[ollama stderr] ${line}`)
+      }
+    })
+    proc.on('error', (err: Error) => {
+      console.log(`[ollama] spawn error: ${err.message}`)
+      resolve({ ok: false, error: err.message, exitCode: -1 })
+    })
+    proc.on('close', (code: number | null) => {
+      const exitCode = code === null ? -1 : code
+      const wallMs = Date.now() - startedAt
+      console.log(
+        `[ollama] exit=${exitCode} stdoutLength=${stdout.length} wallMs=${wallMs}`
+      )
+      const classified = classifyOllamaResult({ exitCode, stdout, stderr })
+      if (!classified.ok) {
+        console.log(`[ollama] failed exitCode=${classified.exitCode}`)
+      }
+      resolve(classified)
+    })
   })
 })
 
