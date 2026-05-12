@@ -88,50 +88,62 @@ ipcMain.handle('archive-file', (_e, filename: string): void => {
   fs.renameSync(src, dest)
 })
 
+async function callOllama(
+  prompt: string,
+  logPrefix = '[ollama]'
+): Promise<OllamaResult> {
+  const start = Date.now()
+  const apiUrl = resolveOllamaApiUrl(process.env)
+  const model = resolveOllamaModel(process.env)
+  const systemPrompt = fs.existsSync('VAULT.md')
+    ? fs.readFileSync('VAULT.md', 'utf-8')
+    : ''
+  console.log(
+    `${logPrefix} url=${apiUrl} model=${model} promptLength=${prompt.length}`
+  )
+  const { url, init } = buildOllamaRequest({
+    apiUrl,
+    model,
+    systemPrompt,
+    userPrompt: prompt,
+  })
+  try {
+    const res = await fetch(url, init)
+    const body = await res.text()
+    const wallMs = Date.now() - start
+    console.log(
+      `${logPrefix} status=${res.status} bodyLength=${body.length} wallMs=${wallMs}`
+    )
+    const result = parseOllamaResponse({ status: res.status, body })
+    if (!result.ok) {
+      console.log(`${logPrefix} error: ${result.error}`)
+    }
+    return result
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    const rawCause = (err as { cause?: unknown }).cause
+    const cause =
+      rawCause instanceof Error
+        ? rawCause.message
+        : typeof rawCause === 'string'
+          ? rawCause
+          : undefined
+    const detail = cause ? `${msg} (${cause})` : msg
+    console.log(`${logPrefix} ${detail}`)
+    return { ok: false, error: detail, statusCode: -1 }
+  }
+}
+
+const WARMUP_PROMPT = "If you can hear me respond 'pong'"
+
+function warmupOllama(): void {
+  if (process.env.NODE_ENV === 'test') return
+  void callOllama(WARMUP_PROMPT, '[ollama warmup]')
+}
+
 ipcMain.handle(
   'run-ollama',
-  async (_e, prompt: string): Promise<OllamaResult> => {
-    const start = Date.now()
-    const apiUrl = resolveOllamaApiUrl(process.env)
-    const model = resolveOllamaModel(process.env)
-    const systemPrompt = fs.existsSync('VAULT.md')
-      ? fs.readFileSync('VAULT.md', 'utf-8')
-      : ''
-    console.log(
-      `[ollama] url=${apiUrl} model=${model} promptLength=${prompt.length}`
-    )
-    const { url, init } = buildOllamaRequest({
-      apiUrl,
-      model,
-      systemPrompt,
-      userPrompt: prompt,
-    })
-    try {
-      const res = await fetch(url, init)
-      const body = await res.text()
-      const wallMs = Date.now() - start
-      console.log(
-        `[ollama] status=${res.status} bodyLength=${body.length} wallMs=${wallMs}`
-      )
-      const result = parseOllamaResponse({ status: res.status, body })
-      if (!result.ok) {
-        console.log(`[ollama] error: ${result.error}`)
-      }
-      return result
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      const rawCause = (err as { cause?: unknown }).cause
-      const cause =
-        rawCause instanceof Error
-          ? rawCause.message
-          : typeof rawCause === 'string'
-            ? rawCause
-            : undefined
-      const detail = cause ? `${msg} (${cause})` : msg
-      console.log(`[ollama error] ${detail}`)
-      return { ok: false, error: detail, statusCode: -1 }
-    }
-  }
+  (_e, prompt: string): Promise<OllamaResult> => callOllama(prompt)
 )
 
 // ----- Vault picker IPC -----
@@ -186,6 +198,7 @@ ipcMain.handle(
 app.whenReady().then(() => {
   if (process.env.NODE_ENV === 'test' && app.dock) app.dock.hide()
   createWindow()
+  warmupOllama()
 })
 
 app.on('window-all-closed', () => {
