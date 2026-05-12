@@ -120,8 +120,16 @@ ipcMain.handle(
       return result
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      console.log(`[ollama error] ${msg}`)
-      return { ok: false, error: msg, statusCode: -1 }
+      const rawCause = (err as { cause?: unknown }).cause
+      const cause =
+        rawCause instanceof Error
+          ? rawCause.message
+          : typeof rawCause === 'string'
+            ? rawCause
+            : undefined
+      const detail = cause ? `${msg} (${cause})` : msg
+      console.log(`[ollama error] ${detail}`)
+      return { ok: false, error: detail, statusCode: -1 }
     }
   }
 )

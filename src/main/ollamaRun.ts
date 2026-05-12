@@ -7,7 +7,10 @@ export type OllamaResult =
   | { ok: false; error: string; statusCode: number }
 
 const DEFAULT_MODEL = 'gemma4:e2b'
-const DEFAULT_API_URL = 'http://localhost:11434/v1/chat/completions'
+// Default to IPv4 explicitly: Node 20's fetch resolves `localhost` to ::1 on
+// machines where IPv6 is preferred, but Ollama listens on 127.0.0.1 only by
+// default. Hardcoding the IPv4 address dodges the resolution mismatch.
+const DEFAULT_API_URL = 'http://127.0.0.1:11434/v1/chat/completions'
 const ERROR_BODY_TAIL_CHARS = 200
 
 export function resolveOllamaModel(env: NodeJS.ProcessEnv): string {

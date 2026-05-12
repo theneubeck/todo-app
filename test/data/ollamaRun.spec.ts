@@ -18,13 +18,13 @@ describe('resolveOllamaApiUrl', () => {
 
   it('returns the default localhost URL when OLLAMA_API_URL is unset', () => {
     expect(resolveOllamaApiUrl({})).to.equal(
-      'http://localhost:11434/v1/chat/completions'
+      'http://127.0.0.1:11434/v1/chat/completions'
     )
   })
 
   it('returns the default when OLLAMA_API_URL is an empty string', () => {
     expect(resolveOllamaApiUrl({ OLLAMA_API_URL: '' })).to.equal(
-      'http://localhost:11434/v1/chat/completions'
+      'http://127.0.0.1:11434/v1/chat/completions'
     )
   })
 })
@@ -70,7 +70,7 @@ describe('buildOllamaRequest', () => {
 
   it('sets POST as the method', () => {
     const { init } = buildOllamaRequest({
-      apiUrl: 'http://localhost:11434/v1/chat/completions',
+      apiUrl: 'http://127.0.0.1:11434/v1/chat/completions',
       model: 'gemma4:e2b',
       systemPrompt: '',
       userPrompt: 'hello',
@@ -80,7 +80,7 @@ describe('buildOllamaRequest', () => {
 
   it('sets Content-Type application/json on the headers', () => {
     const { init } = buildOllamaRequest({
-      apiUrl: 'http://localhost:11434/v1/chat/completions',
+      apiUrl: 'http://127.0.0.1:11434/v1/chat/completions',
       model: 'gemma4:e2b',
       systemPrompt: '',
       userPrompt: 'hello',
@@ -91,7 +91,7 @@ describe('buildOllamaRequest', () => {
 
   it('sets the resolved model name in the body', () => {
     const { init } = buildOllamaRequest({
-      apiUrl: 'http://localhost:11434/v1/chat/completions',
+      apiUrl: 'http://127.0.0.1:11434/v1/chat/completions',
       model: 'mymodel:1b',
       systemPrompt: '',
       userPrompt: 'hello',
@@ -102,7 +102,7 @@ describe('buildOllamaRequest', () => {
 
   it('places the system prompt first with role system', () => {
     const { init } = buildOllamaRequest({
-      apiUrl: 'http://localhost:11434/v1/chat/completions',
+      apiUrl: 'http://127.0.0.1:11434/v1/chat/completions',
       model: 'gemma4:e2b',
       systemPrompt: 'you are a helpful assistant',
       userPrompt: 'hello',
@@ -116,7 +116,7 @@ describe('buildOllamaRequest', () => {
 
   it('places the user prompt next with role user', () => {
     const { init } = buildOllamaRequest({
-      apiUrl: 'http://localhost:11434/v1/chat/completions',
+      apiUrl: 'http://127.0.0.1:11434/v1/chat/completions',
       model: 'gemma4:e2b',
       systemPrompt: 'sys',
       userPrompt: 'hello',
@@ -130,7 +130,7 @@ describe('buildOllamaRequest', () => {
 
   it('omits the system message when systemPrompt is empty', () => {
     const { init } = buildOllamaRequest({
-      apiUrl: 'http://localhost:11434/v1/chat/completions',
+      apiUrl: 'http://127.0.0.1:11434/v1/chat/completions',
       model: 'gemma4:e2b',
       systemPrompt: '   \n   ',
       userPrompt: 'hello',
@@ -142,7 +142,7 @@ describe('buildOllamaRequest', () => {
 
   it('sets stream to false', () => {
     const { init } = buildOllamaRequest({
-      apiUrl: 'http://localhost:11434/v1/chat/completions',
+      apiUrl: 'http://127.0.0.1:11434/v1/chat/completions',
       model: 'gemma4:e2b',
       systemPrompt: '',
       userPrompt: 'hello',
