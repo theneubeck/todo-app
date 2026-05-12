@@ -8,7 +8,7 @@ export type OllamaResult =
 
 const STDERR_TAIL_CHARS = 200
 
-const DEFAULT_MODEL = 'gemma3:4b'
+const DEFAULT_MODEL = 'gemma4:e2b'
 
 export function classifyOllamaResult(input: {
   exitCode: number

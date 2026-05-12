@@ -61,11 +61,11 @@ describe('resolveOllamaModel', () => {
     )
   })
 
-  it('returns the default gemma3:4b when OLLAMA_MODEL is unset', () => {
-    expect(resolveOllamaModel({})).to.equal('gemma3:4b')
+  it('returns the default gemma4:e2b when OLLAMA_MODEL is unset', () => {
+    expect(resolveOllamaModel({})).to.equal('gemma4:e2b')
   })
 
   it('returns the default when OLLAMA_MODEL is an empty string', () => {
-    expect(resolveOllamaModel({ OLLAMA_MODEL: '' })).to.equal('gemma3:4b')
+    expect(resolveOllamaModel({ OLLAMA_MODEL: '' })).to.equal('gemma4:e2b')
   })
 })
