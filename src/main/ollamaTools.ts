@@ -8,8 +8,21 @@
 
 import { buildTaskFile } from '../renderer/data/buildTaskFile'
 
-export const SYSTEM_PROMPT_ADDENDUM =
-  'Use tools when the user gives a concrete instruction. Ask a clarifying question first only when essential information is missing.'
+export const SYSTEM_PROMPT_ADDENDUM = [
+  'Your default action is to call the `add_task` tool. The user is using a task manager; almost every message is a task or a list of tasks.',
+  '',
+  'Rules:',
+  '1. If the user mentions anything they need to do, want to do, or should do — call `add_task` with a short title. Do NOT ask which type of item to create; tasks are the only type.',
+  '2. If the user gives a bullet list, comma-separated list, or numbered list — call `add_task` once per item.',
+  '3. If the user uses the word "tasks" or "todos" in any form, treat their next message (or the same message) as a list to add. Do not ask what kind of items they meant.',
+  '4. Only ask a clarifying question when the title would be literally empty or you cannot identify any actionable noun.',
+  '',
+  'Examples:',
+  'User: "I should talk to Lina about the budget." → call add_task(title: "Talk to Lina about the budget").',
+  'User: "Free time, Vacation, Foobar" → call add_task three times: ("Free time"), ("Vacation"), ("Foobar").',
+  'User: "Remind me to buy milk and eggs" → call add_task twice: ("Buy milk"), ("Buy eggs").',
+  'User: "Hello" → reply with a short greeting; nothing actionable.',
+].join('\n')
 
 type AddTaskParameters = {
   type: 'object'
