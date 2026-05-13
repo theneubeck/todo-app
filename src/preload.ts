@@ -1,10 +1,20 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-// Mirrors src/main/ollamaRun.ts OllamaResult. Duplicated rather than imported
-// to keep the preload bundle free of side-effectful imports.
+// Mirrors src/main/ollamaRun.ts OllamaResult + ToolEvent. Duplicated rather
+// than imported to keep the preload bundle free of side-effectful imports.
+export type ToolEvent = {
+  callId: string
+  name: string
+  argsRaw: string
+  status: 'ok' | 'error'
+  resultContent: string
+  action?: string
+  error?: string
+}
+
 export type OllamaResult =
-  | { ok: true; reply: string }
-  | { ok: false; error: string; statusCode: number }
+  | { ok: true; reply: string; toolEvents?: ToolEvent[] }
+  | { ok: false; error: string; statusCode: number; toolEvents?: ToolEvent[] }
 
 contextBridge.exposeInMainWorld('todoz', {
   readTodos: () => ipcRenderer.invoke('read-todos'),

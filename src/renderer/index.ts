@@ -12,9 +12,19 @@ import { mountVaultPicker } from './views/VaultPicker'
 import { mountSettingsPanel } from './views/SettingsPanel'
 import type { AppSettings, AppSettingKey } from '../main/appSettings'
 
+export type ToolEvent = {
+  callId: string
+  name: string
+  argsRaw: string
+  status: 'ok' | 'error'
+  resultContent: string
+  action?: string
+  error?: string
+}
+
 export type OllamaResult =
-  | { ok: true; reply: string }
-  | { ok: false; error: string; statusCode: number }
+  | { ok: true; reply: string; toolEvents?: ToolEvent[] }
+  | { ok: false; error: string; statusCode: number; toolEvents?: ToolEvent[] }
 
 declare global {
   interface Window {
@@ -603,6 +613,7 @@ type ChatMessage =
   | { role: 'assistant'; text: string }
   | { role: 'assistant'; text: string; error: true }
   | { role: 'assistant'; pending: true }
+  | { role: 'tool'; event: ToolEvent }
 
 function renderChatView(doc: Document, messages: ChatMessage[]): HTMLElement {
   const view = el(doc, 'div', { 'data-chat-view': '' })
@@ -619,6 +630,21 @@ function renderMessage(doc: Document, msg: ChatMessage): HTMLElement {
     const bubble = el(doc, 'div', { 'data-message': 'user' })
     bubble.appendChild(el(doc, 'span', { 'data-message-text': '' }, msg.text))
     return bubble
+  }
+  if (msg.role === 'tool') {
+    const ev = msg.event
+    const row = el(doc, 'div', {
+      'data-message': 'tool',
+      'data-tool-status': ev.status,
+      'data-tool-name': ev.name,
+    })
+    const action = ev.action ?? ev.name
+    row.appendChild(el(doc, 'span', { 'data-tool-action': '' }, action))
+    if (ev.status === 'error') {
+      const errText = ev.error ?? ev.resultContent
+      row.appendChild(el(doc, 'span', { 'data-tool-error': '' }, errText))
+    }
+    return row
   }
   // assistant
   if ('pending' in msg) {
@@ -1141,14 +1167,36 @@ async function mountMainShell(
     // assistant message. If the bubble was removed elsewhere, do nothing.
     const idx = chatMessages.indexOf(pendingMsg)
     if (idx === -1) return
-    const resolved: ChatMessage = normalized.ok
-      ? { role: 'assistant', text: normalized.reply }
-      : { role: 'assistant', text: normalized.error, error: true }
+    const toolEvents = normalized.toolEvents ?? []
+    const toolMessages: ChatMessage[] = toolEvents.map((ev) => ({
+      role: 'tool' as const,
+      event: ev,
+    }))
+    const replyText = normalized.ok ? normalized.reply : normalized.error
+    const showAssistant =
+      !normalized.ok || (normalized.ok && replyText.trim().length > 0)
+    const replacement: ChatMessage[] = [...toolMessages]
+    if (showAssistant) {
+      replacement.push(
+        normalized.ok
+          ? { role: 'assistant', text: replyText }
+          : { role: 'assistant', text: replyText, error: true }
+      )
+    }
     chatMessages = [
       ...chatMessages.slice(0, idx),
-      resolved,
+      ...replacement,
       ...chatMessages.slice(idx + 1),
     ]
+    // Refresh the in-memory task list so tool-written files show up when the
+    // user navigates back to a task view.
+    if (toolEvents.some((e) => e.status === 'ok')) {
+      try {
+        tasks = await window.todoz.readTodos()
+      } catch {
+        // ignore — keep current state on read failure
+      }
+    }
     fullRender()
   }
 

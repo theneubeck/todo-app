@@ -5,6 +5,7 @@ import {
   resolveOllamaModel,
   buildOllamaRequest,
   parseOllamaResponse,
+  parseOllamaToolsResponse,
 } from '../../src/main/ollamaRun'
 
 describe('resolveOllamaApiUrl', () => {
@@ -194,5 +195,143 @@ describe('parseOllamaResponse', () => {
     if (result.ok) throw new Error('unreachable')
     expect(result.statusCode).to.equal(200)
     expect(result.error).to.equal('invalid JSON body from API')
+  })
+})
+
+describe('parseOllamaToolsResponse', () => {
+  it('returns content kind when the response carries plain content', () => {
+    const body = JSON.stringify({
+      choices: [{ message: { content: 'hello' } }],
+    })
+    const result = parseOllamaToolsResponse({ status: 200, body })
+    expect(result.kind).to.equal('content')
+    if (result.kind !== 'content') throw new Error('unreachable')
+    expect(result.reply).to.equal('hello')
+  })
+
+  it('returns tool_calls kind when the response carries tool_calls', () => {
+    const body = JSON.stringify({
+      choices: [
+        {
+          message: {
+            content: '',
+            tool_calls: [
+              {
+                id: 'call_a',
+                type: 'function',
+                function: { name: 'add_task', arguments: '{"title":"x"}' },
+              },
+            ],
+          },
+        },
+      ],
+    })
+    const result = parseOllamaToolsResponse({ status: 200, body })
+    expect(result.kind).to.equal('tool_calls')
+    if (result.kind !== 'tool_calls') throw new Error('unreachable')
+    expect(result.calls).to.have.lengthOf(1)
+    expect(result.calls[0].function.name).to.equal('add_task')
+    expect(result.calls[0].function.arguments).to.equal('{"title":"x"}')
+  })
+
+  it('returns error kind on non-200 status', () => {
+    const body = JSON.stringify({ error: 'boom' })
+    const result = parseOllamaToolsResponse({ status: 500, body })
+    expect(result.kind).to.equal('error')
+    if (result.kind !== 'error') throw new Error('unreachable')
+    expect(result.statusCode).to.equal(500)
+    expect(result.error).to.contain('boom')
+  })
+
+  it('returns error kind on invalid JSON body', () => {
+    const result = parseOllamaToolsResponse({ status: 200, body: 'not json {' })
+    expect(result.kind).to.equal('error')
+    if (result.kind !== 'error') throw new Error('unreachable')
+    expect(result.error).to.equal('invalid JSON body from API')
+  })
+
+  it('returns error kind when choices is missing', () => {
+    const body = JSON.stringify({ foo: 'bar' })
+    const result = parseOllamaToolsResponse({ status: 200, body })
+    expect(result.kind).to.equal('error')
+  })
+
+  it('returns error kind when neither tool_calls nor content is present', () => {
+    const body = JSON.stringify({ choices: [{ message: {} }] })
+    const result = parseOllamaToolsResponse({ status: 200, body })
+    expect(result.kind).to.equal('error')
+  })
+
+  it('falls back to status text when non-200 body is empty', () => {
+    const result = parseOllamaToolsResponse({ status: 503, body: '' })
+    expect(result.kind).to.equal('error')
+    if (result.kind !== 'error') throw new Error('unreachable')
+    expect(result.error).to.equal('ollama API returned status 503')
+  })
+
+  it('synthesizes a call id when the response omits id', () => {
+    const body = JSON.stringify({
+      choices: [
+        {
+          message: {
+            tool_calls: [
+              {
+                type: 'function',
+                function: { name: 'add_task', arguments: '{"title":"x"}' },
+              },
+            ],
+          },
+        },
+      ],
+    })
+    const result = parseOllamaToolsResponse({ status: 200, body })
+    expect(result.kind).to.equal('tool_calls')
+    if (result.kind !== 'tool_calls') throw new Error('unreachable')
+    expect(result.calls[0].id).to.equal('call_1')
+  })
+
+  it('serializes object arguments when the response omits the arguments string', () => {
+    const body = JSON.stringify({
+      choices: [
+        {
+          message: {
+            tool_calls: [
+              {
+                id: 'c1',
+                type: 'function',
+                function: { name: 'add_task', arguments: { title: 'x' } },
+              },
+            ],
+          },
+        },
+      ],
+    })
+    const result = parseOllamaToolsResponse({ status: 200, body })
+    expect(result.kind).to.equal('tool_calls')
+    if (result.kind !== 'tool_calls') throw new Error('unreachable')
+    expect(result.calls[0].function.arguments).to.equal('{"title":"x"}')
+  })
+
+  it('drops tool_call entries that have no function name and falls back to content', () => {
+    const body = JSON.stringify({
+      choices: [
+        {
+          message: {
+            content: 'fallback',
+            tool_calls: [
+              {
+                id: 'c1',
+                type: 'function',
+                function: { name: '', arguments: '{}' },
+              },
+            ],
+          },
+        },
+      ],
+    })
+    const result = parseOllamaToolsResponse({ status: 200, body })
+    expect(result.kind).to.equal('content')
+    if (result.kind !== 'content') throw new Error('unreachable')
+    expect(result.reply).to.equal('fallback')
   })
 })

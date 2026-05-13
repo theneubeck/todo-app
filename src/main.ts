@@ -20,10 +20,17 @@ import { isPathInsideActiveVault } from './main/writeFileGuard'
 import {
   buildOllamaRequest,
   parseOllamaResponse,
+  parseOllamaToolsResponse,
   resolveOllamaApiUrl,
   resolveOllamaModel,
   type OllamaResult,
+  type ToolEvent,
 } from './main/ollamaRun'
+import {
+  buildOllamaToolsRequest,
+  executeAddTask,
+  parseToolCall,
+} from './main/ollamaTools'
 
 let activeVaultPath: string | null = null
 
@@ -138,12 +145,215 @@ const WARMUP_PROMPT = "If you can hear me respond 'pong'"
 
 function warmupOllama(): void {
   if (process.env.NODE_ENV === 'test') return
+  // The warmup path stays on the plain (no-tools) request so a misbehaving
+  // model can't bring up tool-call plumbing at boot.
   void callOllama(WARMUP_PROMPT, '[ollama warmup]')
+}
+
+const TOOL_LOOP_MAX_ITERATIONS = 4
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+async function executeToolCall(
+  rawCall: {
+    id: string
+    type: 'function'
+    function: { name: string; arguments: string }
+  },
+  vault: string | null,
+  todosDirExisting: string[]
+): Promise<{
+  event: ToolEvent
+  toolMessageContent: string
+}> {
+  const parsed = parseToolCall(rawCall)
+  if (!parsed.ok) {
+    return {
+      event: {
+        callId: parsed.callId,
+        name: parsed.name,
+        argsRaw: parsed.argumentsRaw,
+        status: 'error',
+        resultContent: parsed.error,
+        action: parsed.name,
+        error: parsed.error,
+      },
+      toolMessageContent: parsed.error,
+    }
+  }
+  if (!vault) {
+    const err = 'no active vault'
+    return {
+      event: {
+        callId: parsed.callId,
+        name: parsed.name,
+        argsRaw: parsed.argumentsRaw,
+        status: 'error',
+        resultContent: err,
+        action: parsed.name,
+        error: err,
+      },
+      toolMessageContent: err,
+    }
+  }
+  try {
+    const built = executeAddTask(parsed.args, {
+      today: todayIso(),
+      existingFilenames: todosDirExisting,
+    })
+    const target = path.join(vault, 'todos', built.filename)
+    if (!isPathInsideActiveVault(target, vault)) {
+      const err = `write-file refused: target "${target}" is outside the active vault`
+      return {
+        event: {
+          callId: parsed.callId,
+          name: parsed.name,
+          argsRaw: parsed.argumentsRaw,
+          status: 'error',
+          resultContent: err,
+          action: parsed.name,
+          error: err,
+        },
+        toolMessageContent: err,
+      }
+    }
+    fs.mkdirSync(path.dirname(target), { recursive: true })
+    fs.writeFileSync(target, built.content, 'utf-8')
+    todosDirExisting.push(built.filename)
+    const tags = parsed.args.tags ?? []
+    const tagSuffix = tags.length > 0 ? ' ' + tags.map((t) => `#${t}`).join(' ') : ''
+    return {
+      event: {
+        callId: parsed.callId,
+        name: parsed.name,
+        argsRaw: parsed.argumentsRaw,
+        status: 'ok',
+        resultContent: target,
+        action: `add_task: ${parsed.args.title}${tagSuffix}`,
+      },
+      toolMessageContent: `Wrote ${built.filename}`,
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return {
+      event: {
+        callId: parsed.callId,
+        name: parsed.name,
+        argsRaw: parsed.argumentsRaw,
+        status: 'error',
+        resultContent: msg,
+        action: parsed.name,
+        error: msg,
+      },
+      toolMessageContent: msg,
+    }
+  }
+}
+
+async function runOllamaWithTools(
+  prompt: string,
+  logPrefix = '[ollama tools]'
+): Promise<OllamaResult> {
+  const start = Date.now()
+  const apiUrl = resolveOllamaApiUrl(process.env)
+  const model = resolveOllamaModel(process.env)
+  const systemPrompt = fs.existsSync('VAULT.md')
+    ? fs.readFileSync('VAULT.md', 'utf-8')
+    : ''
+  console.log(
+    `${logPrefix} url=${apiUrl} model=${model} promptLength=${prompt.length}`
+  )
+  const vault = resolveActiveVault()
+  const existing: string[] = []
+  if (vault) {
+    const todosDir = path.join(vault, 'todos')
+    if (fs.existsSync(todosDir)) {
+      for (const f of fs.readdirSync(todosDir)) {
+        if (f.endsWith('.md')) existing.push(f)
+      }
+    }
+  }
+  const toolEvents: ToolEvent[] = []
+  const priorToolCalls: {
+    id: string
+    name: string
+    argumentsRaw: string
+  }[] = []
+  const priorToolResults: { callId: string; content: string }[] = []
+  for (let iter = 0; iter < TOOL_LOOP_MAX_ITERATIONS; iter += 1) {
+    const { url, init } = buildOllamaToolsRequest({
+      apiUrl,
+      model,
+      systemPrompt,
+      userPrompt: prompt,
+      priorToolCalls,
+      priorToolResults,
+    })
+    let body = ''
+    let status = 0
+    try {
+      const res = await fetch(url, init)
+      body = await res.text()
+      status = res.status
+      console.log(
+        `${logPrefix} iter=${iter} status=${status} bodyLength=${body.length} wallMs=${Date.now() - start}`
+      )
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      const rawCause = (err as { cause?: unknown }).cause
+      const cause =
+        rawCause instanceof Error
+          ? rawCause.message
+          : typeof rawCause === 'string'
+            ? rawCause
+            : undefined
+      const detail = cause ? `${msg} (${cause})` : msg
+      console.log(`${logPrefix} ${detail}`)
+      return { ok: false, error: detail, statusCode: -1, toolEvents }
+    }
+    const parsed = parseOllamaToolsResponse({ status, body })
+    if (parsed.kind === 'error') {
+      return {
+        ok: false,
+        error: parsed.error,
+        statusCode: parsed.statusCode,
+        toolEvents,
+      }
+    }
+    if (parsed.kind === 'content') {
+      return { ok: true, reply: parsed.reply, toolEvents }
+    }
+    // tool_calls: execute each sequentially, accumulating events + results.
+    for (const raw of parsed.calls) {
+      const { event, toolMessageContent } = await executeToolCall(
+        raw,
+        vault,
+        existing
+      )
+      toolEvents.push(event)
+      priorToolCalls.push({
+        id: raw.id,
+        name: raw.function.name,
+        argumentsRaw: raw.function.arguments,
+      })
+      priorToolResults.push({ callId: raw.id, content: toolMessageContent })
+    }
+    // Loop continues for the next iteration to fetch the assistant's
+    // follow-up (final content or further tool calls).
+  }
+  return {
+    ok: false,
+    error: 'tool call loop exceeded 4 iterations',
+    statusCode: 200,
+    toolEvents,
+  }
 }
 
 ipcMain.handle(
   'run-ollama',
-  (_e, prompt: string): Promise<OllamaResult> => callOllama(prompt)
+  (_e, prompt: string): Promise<OllamaResult> => runOllamaWithTools(prompt)
 )
 
 // ----- Vault picker IPC -----
