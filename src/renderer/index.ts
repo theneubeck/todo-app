@@ -1083,7 +1083,7 @@ async function mountMainShell(
 
     function updateMode(): void {
       // When chat is disabled (settings.showChat=false, or env var
-      // TODOZ_NO_CHAT=1 which the main process funnels through showChat),
+      // ENABLE_CHAT=0 which the main process funnels through showChat),
       // the bar stays in command mode regardless of input. Plain text on
       // Enter then becomes a no-op via handleCommandEnter's parser, instead
       // of activating the now-hidden chat view.

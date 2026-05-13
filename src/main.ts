@@ -144,7 +144,7 @@ async function callOllama(
 const WARMUP_PROMPT = "If you can hear me respond 'pong'"
 
 function isChatDisabled(): boolean {
-  return process.env.TODOZ_NO_CHAT === '1'
+  return process.env.ENABLE_CHAT === '0'
 }
 
 function warmupOllama(): void {
@@ -401,7 +401,7 @@ ipcMain.handle('vaultz:removeRecent', (_e, vaultPath: string): void => {
 
 ipcMain.handle('settings:getAll', () => {
   const fromDisk = readAppSettings(getAppSettingsPath())
-  // TODOZ_NO_CHAT=1 hard-overrides the persisted setting so the Chat sidebar
+  // ENABLE_CHAT=0 hard-overrides the persisted setting so the Chat sidebar
   // entry is hidden and the command bar stays in command mode for the
   // duration of this run.
   if (isChatDisabled()) return { ...fromDisk, showChat: false }
