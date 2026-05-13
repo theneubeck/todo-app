@@ -11,8 +11,10 @@ import type { BrowserWindowConstructorOptions } from 'electron'
  */
 export function buildWindowOptions(): BrowserWindowConstructorOptions {
   return {
-    width: 900,
-    height: 720,
+    width: 1280,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
     show: process.env.NODE_ENV !== 'test',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

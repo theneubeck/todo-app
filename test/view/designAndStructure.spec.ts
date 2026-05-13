@@ -151,12 +151,23 @@ describe('DesignAndStructure', () => {
     expect(count?.textContent?.trim()).to.equal('3 tasks remaining')
   })
 
-  it('wraps the task list in a single bordered card', async () => {
+  it('wraps the task list in a single full-width card without a visible border', async () => {
+    // Superseded by features/desktop-layout: the desktop-layout plan drops the
+    // outline-variant border on [data-task-card] and the centered max-width:
+    // 768px container. The card is still the single wrapping container for
+    // the task list, but it now stretches to the main pane width and renders
+    // without a visible outer border (relying on row separators per
+    // DESIGN.md).
     await mountApp(dom.window.document.body)
     const cards = dom.window.document.querySelectorAll('[data-task-card]')
     expect(cards.length).to.equal(1)
-    const list = cards[0].querySelector('[data-task-list]')
+    const card = cards[0] as HTMLElement
+    const list = card.querySelector('[data-task-list]')
     expect(list).to.not.equal(null)
+    const inlineBorder = card.style.border
+    expect(inlineBorder === '' || inlineBorder === 'none').to.equal(true)
+    const inlineMaxWidth = card.style.maxWidth
+    expect(inlineMaxWidth === '' || inlineMaxWidth === 'none').to.equal(true)
   })
 
   it('groups task rows under uppercase priority headings', async () => {

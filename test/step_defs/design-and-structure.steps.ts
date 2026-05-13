@@ -119,14 +119,23 @@ Then(
 )
 
 Then(
-  'the task list renders inside a bordered card grouped under uppercase priority headings',
+  'the task list renders inside a full-width card grouped under uppercase priority headings',
   function (this: TodozWorld) {
+    // Superseded by features/desktop-layout: the card no longer has an
+    // outline-variant border or 768px max-width — it stretches to the main
+    // pane's full width. The grouping-headings half of the original assertion
+    // is unchanged.
     const cards = this.document.querySelectorAll('[data-task-card]')
-    expect(cards.length, 'one bordered card').to.equal(1)
-    const list = cards[0].querySelector('[data-task-list]')
+    expect(cards.length, 'one task card').to.equal(1)
+    const card = cards[0] as HTMLElement
+    const list = card.querySelector('[data-task-list]')
     expect(list, 'task list inside card').to.not.equal(null)
+    const inlineBorder = card.style.border
+    expect(inlineBorder === '' || inlineBorder === 'none').to.equal(true)
+    const inlineMaxWidth = card.style.maxWidth
+    expect(inlineMaxWidth === '' || inlineMaxWidth === 'none').to.equal(true)
     const headings = Array.from(
-      cards[0].querySelectorAll('[data-group-heading]')
+      card.querySelectorAll('[data-group-heading]')
     ).map((el) => el.textContent?.trim() ?? '')
     expect(headings.length, 'at least one group heading').to.be.greaterThan(0)
     headings.forEach((h) => {

@@ -615,16 +615,6 @@ type ChatMessage =
   | { role: 'assistant'; pending: true }
   | { role: 'tool'; event: ToolEvent }
 
-function renderChatView(doc: Document, messages: ChatMessage[]): HTMLElement {
-  const view = el(doc, 'div', { 'data-chat-view': '' })
-  const thread = el(doc, 'div', { 'data-chat-thread': '' })
-  for (const msg of messages) {
-    thread.appendChild(renderMessage(doc, msg))
-  }
-  view.appendChild(thread)
-  return view
-}
-
 function renderMessage(doc: Document, msg: ChatMessage): HTMLElement {
   if (msg.role === 'user') {
     const bubble = el(doc, 'div', { 'data-message': 'user' })
@@ -747,6 +737,7 @@ async function mountMainShell(
   shell.appendChild(renderTopAppBar(doc))
   const body = el(doc, 'div', { 'data-app-body': '' })
   shell.appendChild(body)
+  container.appendChild(shell)
 
   let openSettingsTeardown: (() => void) | null = null
   const settingsBtn = shell.querySelector(
@@ -795,12 +786,8 @@ async function mountMainShell(
     })
   }
 
-  let rootMount: HTMLElement = shell
-  if (vaultPath) {
-    const mainView = el(doc, 'main', {
-      'data-main-view': '',
-      'data-vault-path': vaultPath,
-    })
+  function renderSwitchVaultButton(): HTMLElement | null {
+    if (!vaultPath) return null
     const switchBtn = el(doc, 'button', {
       type: 'button',
       'data-open-another-vault': '',
@@ -810,11 +797,8 @@ async function mountMainShell(
     switchBtn.addEventListener('click', () => {
       void mountPickerWithSwap(container)
     })
-    mainView.appendChild(switchBtn)
-    mainView.appendChild(shell)
-    rootMount = mainView
+    return switchBtn
   }
-  container.appendChild(rootMount)
 
   function visibleTasks(): Task[] {
     return [...tasks]
@@ -946,13 +930,30 @@ async function mountMainShell(
     body.appendChild(sidebar)
     bindSidebarClicks(sidebar)
 
-    const main = el(doc, 'main', { 'data-main': '' })
+    // The second column slot is either [data-main-view] (task list) or
+    // [data-chat-view] (chat thread). Both are direct children of
+    // [data-app-body], i.e. siblings of [data-sidebar]. The data-vault-path
+    // and the Open-another-vault button live on whichever slot is active so
+    // existing vault-picker behavior is preserved across views.
+    const slotAttrs: Record<string, string> = chatActive
+      ? { 'data-chat-view': '' }
+      : { 'data-main-view': '' }
+    if (vaultPath) slotAttrs['data-vault-path'] = vaultPath
+    const slot = el(doc, 'main', slotAttrs)
+
+    const switchBtn = renderSwitchVaultButton()
+    if (switchBtn) slot.appendChild(switchBtn)
+
     if (chatActive) {
-      main.appendChild(renderChatView(doc, chatMessages))
+      const thread = el(doc, 'div', { 'data-chat-thread': '' })
+      for (const msg of chatMessages) {
+        thread.appendChild(renderMessage(doc, msg))
+      }
+      slot.appendChild(thread)
     } else {
       const visible = visibleTasks()
       const remaining = visible.filter((t) => t.status !== 'done').length
-      main.appendChild(renderMainHeader(doc, remaining, activeFilter))
+      slot.appendChild(renderMainHeader(doc, remaining, activeFilter))
       // Seed default expansion once: the very first task in the visible list
       // is rendered expanded on initial mount (matches the legacy chrome
       // behavior). Subsequent renders honor explicit expandedSlugs only.
@@ -962,12 +963,12 @@ async function mountMainShell(
         }
         defaultExpandSeeded = true
       }
-      main.appendChild(renderTaskCard(doc, visible, expandedSlugs, renderCtx))
-      main.appendChild(renderAddTaskAffordance())
+      slot.appendChild(renderTaskCard(doc, visible, expandedSlugs, renderCtx))
+      slot.appendChild(renderAddTaskAffordance())
     }
-    main.appendChild(renderCommandBar(doc))
-    bindCommandBar(main)
-    body.appendChild(main)
+    slot.appendChild(renderCommandBar(doc))
+    bindCommandBar(slot)
+    body.appendChild(slot)
   }
 
   function renderAddTaskAffordance(): HTMLElement {

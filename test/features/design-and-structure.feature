@@ -15,10 +15,10 @@ Feature: Design and structure
     When the initial render completes
     Then the main content header shows the h1 "Inbox" above the remaining-count line
 
-  Scenario: Task list renders as a bordered card grouped by priority
+  Scenario: Task list renders as a full-width card grouped by priority
     Given the vault contains the standard fixture todos
     When the initial render completes
-    Then the task list renders inside a bordered card grouped under uppercase priority headings
+    Then the task list renders inside a full-width card grouped under uppercase priority headings
 
   Scenario: Expanded task reveals indented subtasks with guide line
     Given the vault contains the standard fixture todos

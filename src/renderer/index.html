@@ -59,9 +59,11 @@
         font-feature-settings: 'liga';
       }
       [data-app-shell] {
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
       }
       /* Top app bar */
       [data-app-bar] {
@@ -72,9 +74,7 @@
         padding: 0 24px;
         background: var(--surface);
         border-bottom: 1px solid var(--outline-variant);
-        max-width: 1024px;
         width: 100%;
-        margin: 0 auto;
       }
       [data-brand] {
         font-family: 'Inter', sans-serif;
@@ -114,13 +114,11 @@
       }
       /* App body grid */
       [data-app-body] {
-        display: flex;
-        flex: 1;
-        gap: 32px;
-        padding: 24px 24px 32px 24px;
-        max-width: 1024px;
+        display: grid;
+        grid-template-columns: 240px 1fr;
         width: 100%;
-        margin: 0 auto;
+        height: 100%;
+        overflow: hidden;
         position: relative;
       }
       /* Sidebar */
@@ -130,6 +128,10 @@
         gap: 8px;
         width: 240px;
         flex-shrink: 0;
+        overflow-y: auto;
+        border-right: 1px solid var(--outline-variant);
+        padding: 16px 8px;
+        background: var(--surface);
       }
       a[data-nav-entry] {
         display: flex;
@@ -208,14 +210,17 @@
         padding: 0 16px;
         margin: 0 0 8px 0;
       }
-      /* Main */
-      [data-main] {
-        flex: 1;
+      /* Main pane and chat view share the same grid slot (sibling of sidebar). */
+      [data-main-view],
+      [data-chat-view] {
         display: flex;
         flex-direction: column;
         gap: 24px;
         min-width: 0;
-        padding-bottom: 96px;
+        overflow-y: auto;
+        padding: 24px 32px 96px 32px;
+        position: relative;
+        background: var(--surface);
       }
       [data-main-header] {
         border-bottom: 1px solid var(--outline-variant);
@@ -236,13 +241,18 @@
         color: var(--on-surface-variant);
         margin: 0;
       }
-      /* Task card */
+      /* Task card — desktop-layout: border + rounded corners removed; the
+         card stretches to fill the main pane width. Row separators per
+         DESIGN.md ("Separators: Use 1px borders to divide list items")
+         provide visual structure without the outer card outline. */
       [data-task-card] {
         display: flex;
         flex-direction: column;
-        border: 1px solid var(--outline-variant);
-        border-radius: 4px;
-        background: var(--surface-container-lowest);
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        max-width: none;
+        width: 100%;
       }
       [data-task-list] {
         list-style: none;
@@ -496,16 +506,17 @@
         outline: none;
         width: min(360px, 100%);
       }
-      /* Command bar */
+      /* Command bar — desktop-layout: pinned to the bottom of the main pane,
+         spanning the pane width (no longer a centered overlay). The sticky
+         position keeps it pinned as the pane scrolls. */
       [data-command-bar] {
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: calc(100% - 48px);
-        max-width: 600px;
+        position: sticky;
+        bottom: 0;
+        margin-top: auto;
+        width: 100%;
+        max-width: none;
         background: var(--surface-container-lowest);
-        border: 1px solid rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--outline-variant);
         border-radius: 12px;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
         padding: 16px;
@@ -567,12 +578,8 @@
         border-radius: 4px;
         padding: 4px 6px;
       }
-      /* Chat view */
-      [data-chat-view] {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
+      /* Chat thread (the [data-chat-view] slot styles live with [data-main-view]
+         above — both share the same grid slot). */
       [data-chat-thread] {
         display: flex;
         flex-direction: column;
@@ -743,10 +750,6 @@
       }
       [data-recent-row]:hover [data-remove-recent] {
         opacity: 1;
-      }
-      [data-main-view] {
-        display: block;
-        position: relative;
       }
       [data-open-another-vault] {
         position: absolute;

@@ -124,7 +124,7 @@ The type system is built on a tight scale to ensure consistency across the task 
 
 ## Layout & Spacing
 
-The layout philosophy is centered on a **Fixed Grid** for the primary task workspace to maintain focus and prevent scanning fatigue on wide displays. The main content container is centered and constrained to a maximum width of 768px.
+The layout philosophy is a **two-column desktop grid** modeled on Slack and Obsidian: a fixed 240px sidebar on the left and a flexible main pane on the right that expands to fill the rest of the window. The top app bar spans the full window width above the grid. The default window opens at 1280×800 (min 800×600) and the workspace stretches to fill whatever horizontal space is available — no centered reading column at the workspace level. The `container-max` token remains available for future narrow components (e.g. a dialog or focused composer), but is not applied to the main pane.
 
 A strict 4px/8px base-8 spacing rhythm is applied globally.
 - **Margins:** Use 24px (lg) or 32px (xl) for outer container margins to create a sense of focus.
