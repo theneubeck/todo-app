@@ -1082,7 +1082,13 @@ async function mountMainShell(
     const hint = bar.querySelector('[data-shortcut-hint]') as HTMLElement
 
     function updateMode(): void {
-      const isCommand = input.value.startsWith('/')
+      // When chat is disabled (settings.showChat=false, or env var
+      // TODOZ_NO_CHAT=1 which the main process funnels through showChat),
+      // the bar stays in command mode regardless of input. Plain text on
+      // Enter then becomes a no-op via handleCommandEnter's parser, instead
+      // of activating the now-hidden chat view.
+      const chatOn = appSettings.showChat
+      const isCommand = !chatOn || input.value.startsWith('/')
       bar.setAttribute('data-command-mode', isCommand ? 'command' : 'chat')
       hint.textContent = isCommand ? 'Enter to run' : 'Enter to send'
     }

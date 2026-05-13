@@ -143,8 +143,13 @@ async function callOllama(
 
 const WARMUP_PROMPT = "If you can hear me respond 'pong'"
 
+function isChatDisabled(): boolean {
+  return process.env.TODOZ_NO_CHAT === '1'
+}
+
 function warmupOllama(): void {
   if (process.env.NODE_ENV === 'test') return
+  if (isChatDisabled()) return
   // The warmup path stays on the plain (no-tools) request so a misbehaving
   // model can't bring up tool-call plumbing at boot.
   void callOllama(WARMUP_PROMPT, '[ollama warmup]')
@@ -395,7 +400,12 @@ ipcMain.handle('vaultz:removeRecent', (_e, vaultPath: string): void => {
 // ----- App settings IPC -----
 
 ipcMain.handle('settings:getAll', () => {
-  return readAppSettings(getAppSettingsPath())
+  const fromDisk = readAppSettings(getAppSettingsPath())
+  // TODOZ_NO_CHAT=1 hard-overrides the persisted setting so the Chat sidebar
+  // entry is hidden and the command bar stays in command mode for the
+  // duration of this run.
+  if (isChatDisabled()) return { ...fromDisk, showChat: false }
+  return fromDisk
 })
 
 ipcMain.handle(
