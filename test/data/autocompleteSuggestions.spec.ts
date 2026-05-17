@@ -4,6 +4,8 @@ import {
   getTriggerWord,
   getSuggestions,
   applyAutocomplete,
+  getGotoSuggestions,
+  applyGotoAutocomplete,
 } from '../../src/renderer/data/autocompleteSuggestions'
 
 describe('getTriggerWord', () => {
@@ -117,6 +119,67 @@ describe('applyAutocomplete', () => {
     const choice = { label: '#errands', insert: '#errands' }
     const r = applyAutocomplete('hello', 5, choice)
     expect(r).to.deep.equal({ value: 'hello', caret: 5 })
+  })
+})
+
+describe('getGotoSuggestions', () => {
+  const allTags = {
+    projects: ['errands', 'personal', 'work'],
+    people: ['@lina', '@mike'],
+  }
+
+  it('returns empty array when value does not start with /goto ', () => {
+    const r = getGotoSuggestions('#errands', allTags)
+    expect(r).to.deep.equal([])
+  })
+
+  it('returns all tags alphabetically when query is empty', () => {
+    const r = getGotoSuggestions('/goto ', allTags)
+    const labels = r.map((s) => s.label)
+    expect(labels).to.deep.equal(['#errands', '#personal', '#work', '@lina', '@mike'])
+  })
+
+  it('returns project tags prefixed with # and people tags with @', () => {
+    const r = getGotoSuggestions('/goto ', allTags)
+    const projectLabels = r.filter((s) => s.label.startsWith('#')).map((s) => s.label)
+    const peopleLabels = r.filter((s) => s.label.startsWith('@')).map((s) => s.label)
+    expect(projectLabels).to.deep.equal(['#errands', '#personal', '#work'])
+    expect(peopleLabels).to.deep.equal(['@lina', '@mike'])
+  })
+
+  it('fuzzy-filters tags by subsequence match', () => {
+    const r = getGotoSuggestions('/goto er', allTags)
+    const labels = r.map((s) => s.label)
+    expect(labels).to.deep.equal(['#errands', '#personal'])
+  })
+
+  it('is case-insensitive', () => {
+    const r = getGotoSuggestions('/goto ER', allTags)
+    const labels = r.map((s) => s.label)
+    expect(labels).to.deep.equal(['#errands', '#personal'])
+  })
+
+  it('caps results at 8', () => {
+    const manyTags = {
+      projects: ['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'a10'],
+      people: [],
+    }
+    const r = getGotoSuggestions('/goto a', manyTags)
+    expect(r.length).to.equal(8)
+  })
+})
+
+describe('applyGotoAutocomplete', () => {
+  it('replaces everything after /goto with the chosen tag plus a space', () => {
+    const choice = { label: '#errands', insert: '#errands' }
+    const r = applyGotoAutocomplete('/goto er', choice)
+    expect(r.value).to.equal('/goto #errands ')
+  })
+
+  it('returns the caret at the end of the new value', () => {
+    const choice = { label: '#errands', insert: '#errands' }
+    const r = applyGotoAutocomplete('/goto er', choice)
+    expect(r.caret).to.equal('/goto #errands '.length)
   })
 })
 

@@ -89,6 +89,44 @@ export function getSuggestions(
   return sorted.slice(0, MAX_SUGGESTIONS)
 }
 
+function fuzzyMatch(label: string, query: string): boolean {
+  if (query.length === 0) return true
+  const l = label.toLowerCase()
+  let li = 0
+  for (let qi = 0; qi < query.length; qi++) {
+    const found = l.indexOf(query[qi], li)
+    if (found === -1) return false
+    li = found + 1
+  }
+  return true
+}
+
+export function getGotoSuggestions(value: string, allTags: AllTags): Suggestion[] {
+  const GOTO_PREFIX = '/goto '
+  if (!value.startsWith(GOTO_PREFIX)) return []
+  const query = value.slice(GOTO_PREFIX.length).toLowerCase()
+  const pool: Suggestion[] = [
+    ...allTags.projects.map((tag) => {
+      const label = `#${tag.toLowerCase()}`
+      return { label, insert: label }
+    }),
+    ...allTags.people.map((tag) => {
+      const label = tag.toLowerCase()
+      return { label, insert: label }
+    }),
+  ].sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0))
+  const filtered = pool.filter((s) => fuzzyMatch(s.label, query))
+  return filtered.slice(0, MAX_SUGGESTIONS)
+}
+
+export function applyGotoAutocomplete(
+  value: string,
+  choice: Suggestion
+): { value: string; caret: number } {
+  const newValue = '/goto ' + choice.insert + ' '
+  return { value: newValue, caret: newValue.length }
+}
+
 export function applyAutocomplete(
   value: string,
   caret: number,

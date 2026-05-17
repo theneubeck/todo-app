@@ -190,3 +190,32 @@ describe('Autocomplete dropdown', () => {
     )
   })
 })
+
+describe('Autocomplete dropdown — goto mode', () => {
+  let s: Setup
+
+  beforeEach(() => {
+    s = setupDom()
+  })
+
+  it('opens the dropdown immediately when input is /goto with no query', () => {
+    fireInput(s.dom, s.input, '/goto ')
+    const drop = s.dom.window.document.querySelector('[data-autocomplete]')
+    expect(drop).to.not.equal(null)
+  })
+
+  it('fuzzy-filters suggestions in /goto mode', () => {
+    fireInput(s.dom, s.input, '/goto er')
+    const rows = s.dom.window.document.querySelectorAll('[data-autocomplete-label]')
+    const labels = Array.from(rows).map((el) => el.textContent)
+    // "er" matches #errands (e,r) and #personal (e...r in "personal")
+    expect(labels).to.deep.equal(['#errands', '#personal'])
+  })
+
+  it('replaces everything after /goto on Tab in goto mode', () => {
+    fireInput(s.dom, s.input, '/goto er')
+    pressKey(s.dom, s.input, 'Tab')
+    expect(s.inserts.length).to.equal(1)
+    expect(s.inserts[0].value).to.equal('/goto #errands ')
+  })
+})

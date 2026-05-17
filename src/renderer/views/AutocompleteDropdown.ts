@@ -3,6 +3,8 @@ import {
   Suggestion,
   applyAutocomplete,
   getSuggestions,
+  getGotoSuggestions,
+  applyGotoAutocomplete,
 } from '../data/autocompleteSuggestions'
 
 export interface AutocompleteDropdownDeps {
@@ -77,7 +79,8 @@ export function mountAutocompleteDropdown(
     const value = input.value
     const caret = caretPosition()
     const all = deps.getAllTags()
-    suggestions = getSuggestions(value, caret, all)
+    const isGoto = value.startsWith('/goto ')
+    suggestions = isGoto ? getGotoSuggestions(value, all) : getSuggestions(value, caret, all)
     // Always reset highlight to the first suggestion when the suggestion set
     // changes (matches Slack/Obsidian behavior — user can ArrowDown from
     // there).
@@ -90,7 +93,10 @@ export function mountAutocompleteDropdown(
     const choice = suggestions[activeIndex]
     const value = input.value
     const caret = caretPosition()
-    const next = applyAutocomplete(value, caret, choice)
+    const isGoto = value.startsWith('/goto ')
+    const next = isGoto
+      ? applyGotoAutocomplete(value, choice)
+      : applyAutocomplete(value, caret, choice)
     removeDropdown()
     deps.onInsert(next.value, next.caret)
   }
