@@ -7,6 +7,10 @@ import { mountApp } from '../../src/renderer/index'
 const FIXED_TODAY = '2026-05-07'
 
 async function bootstrap(world: TodozWorld): Promise<void> {
+  // If a prior step already mounted the world (e.g. a feature-specific Given
+  // seeded fixtures first), leave it alone — re-mounting would wipe the
+  // fixtures and break shared steps like "the command bar input is empty".
+  if (world.dom) return
   world.mountWindow()
   const win = world.dom!.window as unknown as {
     todoz: {

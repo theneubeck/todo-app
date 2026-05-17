@@ -819,6 +819,53 @@
         accent-color: var(--primary);
         cursor: pointer;
       }
+      /* Tag autocomplete dropdown. The dropdown is appended as a sibling of
+         the command-bar <input> (inputs cannot host children), inside
+         [data-command-bar-fields]. That fields container has overflow:hidden,
+         so the dropdown anchors to the command bar itself by sitting in its
+         own absolutely-positioned box that escapes the fields' clip via the
+         command-bar's stacking context. Keyboard-only — no JS hover
+         handlers; CSS :hover is feedback only. */
+      [data-command-bar-fields] {
+        position: relative;
+        overflow: visible;
+      }
+      [data-autocomplete] {
+        position: absolute;
+        bottom: calc(100% + 12px);
+        left: 0;
+        min-width: 200px;
+        max-width: 100%;
+        max-height: 280px;
+        overflow-y: auto;
+        background: var(--surface-container-lowest);
+        border: 1px solid var(--outline-variant);
+        border-radius: 0.375rem;
+        padding: 4px 0;
+        z-index: 60;
+      }
+      [data-autocomplete-suggestion] {
+        display: block;
+        padding: 8px 12px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--on-surface);
+        cursor: default;
+        border-left: 2px solid transparent;
+        user-select: none;
+      }
+      [data-autocomplete-suggestion]:hover {
+        background: var(--surface-container-low);
+      }
+      [data-autocomplete-suggestion][data-autocomplete-active] {
+        background: var(--surface-container-low);
+        border-left-color: var(--primary);
+      }
+      [data-autocomplete-label] {
+        font-size: 14px;
+        color: var(--on-surface);
+      }
     </style>
   </head>
   <body>

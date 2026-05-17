@@ -10,6 +10,8 @@ import { buildTaskFile } from './data/buildTaskFile'
 import { vaultDir } from './data/vaultDir'
 import { mountVaultPicker } from './views/VaultPicker'
 import { mountSettingsPanel } from './views/SettingsPanel'
+import { mountAutocompleteDropdown } from './views/AutocompleteDropdown'
+import type { TearDown } from './views/AutocompleteDropdown'
 import type { AppSettings, AppSettingKey } from '../main/appSettings'
 
 export type ToolEvent = {
@@ -740,6 +742,7 @@ async function mountMainShell(
   container.appendChild(shell)
 
   let openSettingsTeardown: (() => void) | null = null
+  let autocompleteTeardown: TearDown | null = null
   const settingsBtn = shell.querySelector(
     '[data-app-bar-settings]'
   ) as HTMLElement | null
@@ -1113,6 +1116,35 @@ async function mountMainShell(
       } else {
         await handleChatEnter(input)
       }
+    })
+
+    // Mount the tag-autocomplete dropdown on this input. fullRender() is
+    // called on every state change and rebuilds the command bar, so the
+    // previous teardown (if any) must run first to release event listeners
+    // on the old (now-detached) input element.
+    if (autocompleteTeardown) {
+      autocompleteTeardown()
+      autocompleteTeardown = null
+    }
+    autocompleteTeardown = mountAutocompleteDropdown(input, {
+      getAllTags: () => uniqueTags(tasks),
+      onInsert: (newValue: string, newCaret: number) => {
+        input.value = newValue
+        try {
+          input.setSelectionRange(newCaret, newCaret)
+        } catch {
+          // Some environments (e.g., JSDOM with detached input) reject the
+          // selection-range call; the value update is the only thing that
+          // matters for the contract.
+        }
+        // Notify the mode-detection / any other listeners so they re-evaluate.
+        const view = doc.defaultView as unknown as {
+          Event: { new (type: string, init?: EventInit): Event }
+        }
+        input.dispatchEvent(new view.Event('input', { bubbles: true }))
+        // Keep focus on the input so the user can keep typing.
+        input.focus()
+      },
     })
   }
 
