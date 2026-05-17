@@ -40,4 +40,18 @@ describe('parseGotoCommand', () => {
   it('is case-insensitive for the command prefix', () => {
     expect(parseGotoCommand('/GOTO inbox')).to.deep.equal({ kind: 'inbox' })
   })
+
+  it("returns { kind: 'tag', value: '>read' } for /goto >read", () => {
+    expect(parseGotoCommand('/goto >read')).to.deep.equal({
+      kind: 'tag',
+      value: '>read',
+    })
+  })
+
+  it("returns { kind: 'tag', value: '>watch' } for /goto >watch", () => {
+    expect(parseGotoCommand('/goto >watch')).to.deep.equal({
+      kind: 'tag',
+      value: '>watch',
+    })
+  })
 })

@@ -51,6 +51,7 @@ describe('getSuggestions', () => {
   const allTags = {
     projects: ['errands', 'personal', 'work'],
     people: ['@lina', '@mike'],
+    resources: ['>read', '>watch'],
   }
 
   it("returns all # tags when prefix is just '#'", () => {
@@ -59,7 +60,7 @@ describe('getSuggestions', () => {
   })
 
   it('substring-matches case-insensitively after the sigil', () => {
-    const tags = { projects: ['Errands', 'verifier-things', 'work'], people: [] }
+    const tags = { projects: ['Errands', 'verifier-things', 'work'], people: [], resources: [] }
     const r = getSuggestions('#er', 3, tags)
     expect(r.map((s) => s.label)).to.deep.equal(['#errands', '#verifier-things'])
   })
@@ -70,7 +71,7 @@ describe('getSuggestions', () => {
   })
 
   it('returns alphabetically sorted results', () => {
-    const tags = { projects: ['zebra', 'apple', 'mango'], people: [] }
+    const tags = { projects: ['zebra', 'apple', 'mango'], people: [], resources: [] }
     const r = getSuggestions('#', 1, tags)
     expect(r.map((s) => s.label)).to.deep.equal(['#apple', '#mango', '#zebra'])
   })
@@ -79,6 +80,7 @@ describe('getSuggestions', () => {
     const tags = {
       projects: ['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'a10'],
       people: [],
+      resources: [],
     }
     const r = getSuggestions('#a', 2, tags)
     expect(r.length).to.equal(8)
@@ -92,6 +94,16 @@ describe('getSuggestions', () => {
   it('returns an empty array when the caret is not on a # or @ word', () => {
     const r = getSuggestions('hello', 5, allTags)
     expect(r).to.deep.equal([])
+  })
+
+  it('returns >read and >watch suggestions for a > trigger word', () => {
+    const r = getSuggestions('>', 1, allTags)
+    expect(r.map((s) => s.label)).to.deep.equal(['>read', '>watch'])
+  })
+
+  it('filters resource suggestions by query after >', () => {
+    const r = getSuggestions('>r', 2, allTags)
+    expect(r.map((s) => s.label)).to.deep.equal(['>read'])
   })
 })
 
@@ -126,6 +138,7 @@ describe('getGotoSuggestions', () => {
   const allTags = {
     projects: ['errands', 'personal', 'work'],
     people: ['@lina', '@mike'],
+    resources: ['>read', '>watch'],
   }
 
   it('returns empty array when value does not start with /goto ', () => {
@@ -136,7 +149,7 @@ describe('getGotoSuggestions', () => {
   it('returns all tags alphabetically when query is empty', () => {
     const r = getGotoSuggestions('/goto ', allTags)
     const labels = r.map((s) => s.label)
-    expect(labels).to.deep.equal(['#errands', '#personal', '#work', '@lina', '@mike'])
+    expect(labels).to.deep.equal(['#errands', '#personal', '#work', '>read', '>watch', '@lina', '@mike'])
   })
 
   it('returns project tags prefixed with # and people tags with @', () => {
@@ -163,9 +176,17 @@ describe('getGotoSuggestions', () => {
     const manyTags = {
       projects: ['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'a10'],
       people: [],
+      resources: [],
     }
     const r = getGotoSuggestions('/goto a', manyTags)
     expect(r.length).to.equal(8)
+  })
+
+  it('includes >read and >watch in the /goto suggestion pool', () => {
+    const r = getGotoSuggestions('/goto ', allTags)
+    const labels = r.map((s) => s.label)
+    expect(labels).to.include('>read')
+    expect(labels).to.include('>watch')
   })
 })
 

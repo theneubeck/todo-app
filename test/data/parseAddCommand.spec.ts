@@ -47,4 +47,20 @@ describe('parseAddCommand', () => {
     expect(result?.title).to.equal('buy milk')
     expect(result?.tags).to.deep.equal([])
   })
+
+  it('parses >read token as a resource tag stored with > prefix', () => {
+    const result = parseAddCommand('/add design review >read')
+    expect(result?.tags).to.deep.equal(['>read'])
+  })
+
+  it('parses >watch token as a resource tag stored with > prefix', () => {
+    const result = parseAddCommand('/add WWDC Session >watch')
+    expect(result?.tags).to.deep.equal(['>watch'])
+  })
+
+  it('strips > token from the title word list', () => {
+    const result = parseAddCommand('/add The Design of Everyday Things >read')
+    expect(result?.title).to.equal('The Design of Everyday Things')
+    expect(result?.tags).to.deep.equal(['>read'])
+  })
 })

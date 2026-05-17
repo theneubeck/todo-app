@@ -27,5 +27,9 @@ export function parseGotoCommand(input: string): GotoTarget | null {
     return { kind: 'tag', value: '@' + handle }
   }
 
+  if (dest.startsWith('>') && dest.length > 1) {
+    return { kind: 'tag', value: dest.toLowerCase() }
+  }
+
   return null
 }
