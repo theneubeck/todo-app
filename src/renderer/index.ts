@@ -6,6 +6,7 @@ import {
   addSubtask,
 } from './data/writeTodo'
 import { parseAddCommand } from './data/parseAddCommand'
+import { parseGotoCommand } from './data/parseGotoCommand'
 import { buildTaskFile } from './data/buildTaskFile'
 import { vaultDir } from './data/vaultDir'
 import { mountVaultPicker } from './views/VaultPicker'
@@ -1148,7 +1149,30 @@ async function mountMainShell(
     })
   }
 
+  function applyGoto(target: import('./data/parseGotoCommand').GotoTarget): void {
+    if (target.kind === 'chat') {
+      chatActive = true
+    } else if (target.kind === 'inbox') {
+      chatActive = false
+      activeFilter = { kind: 'inbox' }
+    } else {
+      chatActive = false
+      activeFilter = { kind: 'tag', value: target.value }
+    }
+    fullRender()
+  }
+
   async function handleCommandEnter(input: HTMLInputElement): Promise<void> {
+    const gotoTarget = parseGotoCommand(input.value)
+    if (gotoTarget !== null) {
+      input.value = ''
+      applyGoto(gotoTarget)
+      return
+    }
+    if (input.value.toLowerCase().startsWith('/goto')) {
+      // Unrecognised /goto destination — preserve input, no navigation.
+      return
+    }
     const command = parseAddCommand(input.value)
     if (!command) {
       // No-op — preserve input value, do not clear, do not pulse.
@@ -1239,7 +1263,7 @@ async function mountMainShell(
     fullRender()
   }
 
-  // Document-level cmd+i listener (does not depend on input being focused).
+  // Document-level cmd+i / cmd+t listener (does not depend on input being focused).
   doc.addEventListener('keydown', (e) => {
     const ke = e as KeyboardEvent
     if (ke.metaKey && (ke.key === 'i' || ke.key === 'I')) {
@@ -1251,6 +1275,16 @@ async function mountMainShell(
       const current = input.value
       if (!current.startsWith('/add ')) {
         input.value = `/add ${current}`
+      }
+      input.focus()
+    } else if (ke.metaKey && (ke.key === 't' || ke.key === 'T')) {
+      ke.preventDefault()
+      const input = body.querySelector(
+        '[data-command-bar] input[type="text"]'
+      ) as HTMLInputElement | null
+      if (!input) return
+      if (!input.value.startsWith('/goto ')) {
+        input.value = '/goto '
       }
       input.focus()
     }
