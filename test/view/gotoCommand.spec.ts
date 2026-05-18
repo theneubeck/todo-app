@@ -84,6 +84,33 @@ describe('GoTo command', () => {
     expect(input.value).to.equal('')
   })
 
+  it('sets the inbox filter when /goto #inbox is submitted', async () => {
+    const input = commandBarInput(doc)
+    fireInput(dom, input, '/goto #inbox')
+    pressEnter(dom, input)
+    await tick()
+    expect(mainHeaderTitle(doc)).to.equal('Inbox')
+    expect(input.value).to.equal('')
+  })
+
+  it('sets the today filter when /goto #today is submitted', async () => {
+    const input = commandBarInput(doc)
+    fireInput(dom, input, '/goto #today')
+    pressEnter(dom, input)
+    await tick()
+    expect(mainHeaderTitle(doc)).to.equal('Today')
+    expect(input.value).to.equal('')
+  })
+
+  it('is a no-op when /goto targets an unknown tag', async () => {
+    const input = commandBarInput(doc)
+    fireInput(dom, input, '/goto #nosuchtag')
+    pressEnter(dom, input)
+    await tick()
+    expect(mainHeaderTitle(doc)).to.equal('Inbox')
+    expect(input.value).to.equal('/goto #nosuchtag')
+  })
+
   it('sets a project tag filter and clears input when /goto #errands is submitted', async () => {
     const input = commandBarInput(doc)
     fireInput(dom, input, '/goto #errands')

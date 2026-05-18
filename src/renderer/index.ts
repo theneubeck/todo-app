@@ -121,15 +121,18 @@ function renderTopAppBar(doc: Document): HTMLElement {
 
 type Filter =
   | { kind: 'inbox' }
+  | { kind: 'today' }
   | { kind: 'tag'; value: string } // value: bare slug for project tags ("errands"); "@mike" for people
 
-function filterMatchesTask(filter: Filter, task: Task): boolean {
+function filterMatchesTask(filter: Filter, task: Task, today: string): boolean {
   if (filter.kind === 'inbox') return true
+  if (filter.kind === 'today') return task.due !== undefined && task.due <= today
   return task.tags.includes(filter.value)
 }
 
 function filterLabel(filter: Filter): string {
   if (filter.kind === 'inbox') return 'Inbox'
+  if (filter.kind === 'today') return 'Today'
   if (filter.value === ':read') return 'To Read'
   if (filter.value === ':watch') return 'To Watch'
   if (filter.value.startsWith('@')) return filter.value
@@ -138,11 +141,13 @@ function filterLabel(filter: Filter): string {
 
 function entryKeyForFilter(filter: Filter): string {
   if (filter.kind === 'inbox') return 'inbox'
+  if (filter.kind === 'today') return 'today'
   return filter.value
 }
 
 function filterFromEntryKey(key: string): Filter {
   if (key === 'inbox') return { kind: 'inbox' }
+  if (key === 'today') return { kind: 'today' }
   return { kind: 'tag', value: key }
 }
 
@@ -254,7 +259,7 @@ function renderSidebar(
     for (const tag of projects) {
       const isActive = activeKey === tag
       projectsSection.appendChild(
-        renderTagEntry(doc, tag, `#${tag}`, 'tag', isActive)
+        renderTagEntry(doc, tag, tag, 'tag', isActive)
       )
     }
     aside.appendChild(projectsSection)
@@ -268,7 +273,7 @@ function renderSidebar(
     for (const handle of people) {
       const isActive = activeKey === handle
       peopleSection.appendChild(
-        renderTagEntry(doc, handle, handle, 'alternate_email', isActive)
+        renderTagEntry(doc, handle, handle.slice(1), 'alternate_email', isActive)
       )
     }
     aside.appendChild(peopleSection)
@@ -823,7 +828,7 @@ async function mountMainShell(
 
   function visibleTasks(): Task[] {
     return [...tasks]
-      .filter((t) => filterMatchesTask(activeFilter, t))
+      .filter((t) => filterMatchesTask(activeFilter, t, todayIso()))
       .sort(compareDue)
   }
 
@@ -1063,8 +1068,8 @@ async function mountMainShell(
     const entries = sidebar.querySelectorAll('[data-sidebar-entry]')
     entries.forEach((entry) => {
       const key = entry.getAttribute('data-sidebar-entry') as string
-      // Today / Upcoming remain inert. Chat now activates the chat view.
-      if (key === 'today' || key === 'upcoming') return
+      // Upcoming remains inert. Chat activates chat view. Today navigates to today filter.
+      if (key === 'upcoming') return
       entry.addEventListener('click', (e) => {
         e.preventDefault()
         if (key === 'chat') {
@@ -1166,24 +1171,31 @@ async function mountMainShell(
     })
   }
 
-  function applyGoto(target: import('./data/parseGotoCommand').GotoTarget): void {
+  function applyGoto(target: import('./data/parseGotoCommand').GotoTarget): boolean {
     if (target.kind === 'chat') {
       chatActive = true
     } else if (target.kind === 'inbox') {
       chatActive = false
       activeFilter = { kind: 'inbox' }
+    } else if (target.kind === 'today') {
+      chatActive = false
+      activeFilter = { kind: 'today' }
     } else {
+      // Only navigate to a tag if it exists in the current task set.
+      const { projects, people, resources } = uniqueTags(tasks)
+      const known = [...projects, ...people, ...resources]
+      if (!known.includes(target.value)) return false
       chatActive = false
       activeFilter = { kind: 'tag', value: target.value }
     }
     fullRender()
+    return true
   }
 
   async function handleCommandEnter(input: HTMLInputElement): Promise<void> {
     const gotoTarget = parseGotoCommand(input.value)
     if (gotoTarget !== null) {
-      input.value = ''
-      applyGoto(gotoTarget)
+      if (applyGoto(gotoTarget)) input.value = ''
       return
     }
     if (input.value.toLowerCase().startsWith('/goto')) {

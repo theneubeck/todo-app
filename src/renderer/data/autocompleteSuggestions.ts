@@ -107,11 +107,17 @@ function fuzzyMatch(label: string, query: string): boolean {
   return true
 }
 
+const GOTO_RESERVED: Suggestion[] = [
+  { label: '#inbox', insert: '#inbox' },
+  { label: '#today', insert: '#today' },
+]
+
 export function getGotoSuggestions(value: string, allTags: AllTags): Suggestion[] {
   const GOTO_PREFIX = '/goto '
   if (!value.startsWith(GOTO_PREFIX)) return []
   const query = value.slice(GOTO_PREFIX.length).toLowerCase()
   const pool: Suggestion[] = [
+    ...GOTO_RESERVED,
     ...allTags.projects.map((tag) => {
       const label = `#${tag.toLowerCase()}`
       return { label, insert: label }

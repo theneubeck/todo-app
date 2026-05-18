@@ -1,7 +1,14 @@
 export type GotoTarget =
   | { kind: 'inbox' }
+  | { kind: 'today' }
   | { kind: 'chat' }
   | { kind: 'tag'; value: string } // bare slug for #tags; "@handle" for @people
+
+// Reserved #-tags that map to named views rather than tag filters.
+const RESERVED: Record<string, GotoTarget> = {
+  inbox: { kind: 'inbox' },
+  today: { kind: 'today' },
+}
 
 export function parseGotoCommand(input: string): GotoTarget | null {
   const trimmed = input.trim()
@@ -12,12 +19,16 @@ export function parseGotoCommand(input: string): GotoTarget | null {
   if (dest.length === 0) return null
 
   const lower = dest.toLowerCase()
-  if (lower === 'inbox') return { kind: 'inbox' }
+
+  // Bare words: "inbox", "chat", "today"
   if (lower === 'chat') return { kind: 'chat' }
+  if (RESERVED[lower]) return RESERVED[lower]
 
   if (dest.startsWith('#')) {
     const slug = dest.slice(1).toLowerCase()
     if (slug.length === 0) return null
+    // #inbox and #today are reserved — map to their named views.
+    if (RESERVED[slug]) return RESERVED[slug]
     return { kind: 'tag', value: slug }
   }
 

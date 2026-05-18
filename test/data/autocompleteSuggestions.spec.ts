@@ -149,15 +149,15 @@ describe('getGotoSuggestions', () => {
   it('returns all tags alphabetically when query is empty', () => {
     const r = getGotoSuggestions('/goto ', allTags)
     const labels = r.map((s) => s.label)
-    expect(labels).to.deep.equal(['#errands', '#personal', '#work', ':read', ':watch', '@lina', '@mike'])
+    expect(labels).to.deep.equal(['#errands', '#inbox', '#personal', '#today', '#work', ':read', ':watch', '@lina'])
   })
 
   it('returns project tags prefixed with # and people tags with @', () => {
     const r = getGotoSuggestions('/goto ', allTags)
     const projectLabels = r.filter((s) => s.label.startsWith('#')).map((s) => s.label)
     const peopleLabels = r.filter((s) => s.label.startsWith('@')).map((s) => s.label)
-    expect(projectLabels).to.deep.equal(['#errands', '#personal', '#work'])
-    expect(peopleLabels).to.deep.equal(['@lina', '@mike'])
+    expect(projectLabels).to.deep.equal(['#errands', '#inbox', '#personal', '#today', '#work'])
+    expect(peopleLabels).to.deep.equal(['@lina'])
   })
 
   it('fuzzy-filters tags by subsequence match', () => {

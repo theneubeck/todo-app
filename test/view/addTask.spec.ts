@@ -284,7 +284,7 @@ describe('AddTask', () => {
       projects?.querySelectorAll('[data-sidebar-entry] [data-nav-label]') ?? []
     ).map((el) => el.textContent?.trim())
     // Standard 5-fixture set tags: personal, work, q2, reading, errands
-    expect(labels).to.include.members(['#personal', '#work', '#q2', '#reading', '#errands'])
+    expect(labels).to.include.members(['personal', 'work', 'q2', 'reading', 'errands'])
     // None of the @ tags should appear under projects
     labels.forEach((l) => expect(l?.startsWith('@')).to.equal(false))
   })
@@ -297,7 +297,7 @@ describe('AddTask', () => {
     const labels = Array.from(
       people?.querySelectorAll('[data-sidebar-entry] [data-nav-label]') ?? []
     ).map((el) => el.textContent?.trim())
-    expect(labels).to.deep.equal(['@mike'])
+    expect(labels).to.deep.equal(['mike'])
   })
 
   it('creates a new sidebar entry the first time a tag is used', async () => {

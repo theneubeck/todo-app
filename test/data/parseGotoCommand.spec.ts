@@ -15,6 +15,18 @@ describe('parseGotoCommand', () => {
     expect(parseGotoCommand('/goto inbox')).to.deep.equal({ kind: 'inbox' })
   })
 
+  it('returns { kind: \'inbox\' } for /goto #inbox', () => {
+    expect(parseGotoCommand('/goto #inbox')).to.deep.equal({ kind: 'inbox' })
+  })
+
+  it('returns { kind: \'today\' } for /goto today', () => {
+    expect(parseGotoCommand('/goto today')).to.deep.equal({ kind: 'today' })
+  })
+
+  it('returns { kind: \'today\' } for /goto #today', () => {
+    expect(parseGotoCommand('/goto #today')).to.deep.equal({ kind: 'today' })
+  })
+
   it('returns { kind: \'chat\' } for /goto chat', () => {
     expect(parseGotoCommand('/goto chat')).to.deep.equal({ kind: 'chat' })
   })
