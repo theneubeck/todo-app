@@ -561,9 +561,9 @@ function renderTaskRow(
   const removeBtn = el(
     doc,
     'span',
-    { 'data-remove': '', role: 'button', 'aria-label': 'Remove task' },
-    '✕'
+    { 'data-remove': '', role: 'button', 'aria-label': 'Remove task' }
   )
+  removeBtn.appendChild(icon(doc, 'close'))
   row.appendChild(removeBtn)
 
   if (isCombined) {
