@@ -1157,8 +1157,8 @@ async function mountMainShell(
           if (window.todoz.writeToday) {
             await window.todoz.writeToday([...todaySlugs])
           }
-          pulseEntries(['today'])
           fullRender()
+          pulseEntries(['today'])
         },
       }
       const visible = visibleTasks()
