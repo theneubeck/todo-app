@@ -135,3 +135,66 @@ describe('Read and Watch resources', () => {
     expect(h1?.textContent?.trim()).to.equal('To Watch')
   })
 })
+
+describe('Sigil shorthand for /add', () => {
+  let dom: JSDOM
+  let doc: Document
+  let written: { path: string; content: string }[]
+
+  beforeEach(async () => {
+    written = []
+    dom = makeDom([])
+    ;(dom.window as unknown as { todoz: unknown }).todoz = {
+      readTodos: async () => [],
+      writeFile: async (path: string, content: string) => { written.push({ path, content }) },
+      runOllama: async () => '',
+      today: FIXED_TODAY,
+    }
+    ;(globalThis as unknown as { window: unknown }).window = dom.window
+    ;(globalThis as unknown as { document: unknown }).document = dom.window.document
+    doc = dom.window.document
+    await mountApp(doc.body)
+  })
+
+  it('creates a task when input starts with # sigil', async () => {
+    const input = doc.querySelector('[data-command-bar] input[type="text"]') as HTMLInputElement
+    fireInput(dom, input, '#todo go get bike')
+    pressEnter(dom, input)
+    await tick()
+    expect(written.length).to.equal(1)
+    expect(written[0].content).to.include('go get bike')
+    expect(written[0].content).to.include('todo')
+    expect(input.value).to.equal('')
+  })
+
+  it('creates a task when input starts with @ sigil', async () => {
+    const input = doc.querySelector('[data-command-bar] input[type="text"]') as HTMLInputElement
+    fireInput(dom, input, '@mike call him')
+    pressEnter(dom, input)
+    await tick()
+    expect(written.length).to.equal(1)
+    expect(written[0].content).to.include('call him')
+    expect(written[0].content).to.include('@mike')
+    expect(input.value).to.equal('')
+  })
+
+  it('creates a task when input starts with : sigil', async () => {
+    const input = doc.querySelector('[data-command-bar] input[type="text"]') as HTMLInputElement
+    fireInput(dom, input, ':read The Design of Everyday Things')
+    pressEnter(dom, input)
+    await tick()
+    expect(written.length).to.equal(1)
+    expect(written[0].content).to.include('The Design of Everyday Things')
+    expect(written[0].content).to.include(':read')
+    expect(input.value).to.equal('')
+  })
+
+  it('is a no-op when input is a bare sigil with no title', async () => {
+    const input = doc.querySelector('[data-command-bar] input[type="text"]') as HTMLInputElement
+    fireInput(dom, input, '#todo')
+    pressEnter(dom, input)
+    await tick()
+    expect(written.length).to.equal(0)
+    expect(input.value).to.equal('#todo')
+  })
+})

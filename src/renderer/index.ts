@@ -1110,7 +1110,7 @@ async function mountMainShell(
       // Enter then becomes a no-op via handleCommandEnter's parser, instead
       // of activating the now-hidden chat view.
       const chatOn = appSettings.showChat
-      const isCommand = !chatOn || input.value.startsWith('/')
+      const isCommand = !chatOn || input.value.startsWith('/') || /^[#@:]/.test(input.value)
       bar.setAttribute('data-command-mode', isCommand ? 'command' : 'chat')
       hint.textContent = isCommand ? 'Enter to run' : 'Enter to send'
     }
@@ -1190,7 +1190,10 @@ async function mountMainShell(
       // Unrecognised /goto destination — preserve input, no navigation.
       return
     }
-    const command = parseAddCommand(input.value)
+    // Sigil shorthand: "#tag text", "@person text", ":read text" → "/add …"
+    const raw = input.value
+    const expanded = /^[#@:]/.test(raw) ? `/add ${raw}` : raw
+    const command = parseAddCommand(expanded)
     if (!command) {
       // No-op — preserve input value, do not clear, do not pulse.
       return
