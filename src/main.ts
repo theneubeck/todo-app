@@ -13,6 +13,7 @@ import { createVault } from './main/createVault'
 import {
   readAppSettings,
   writeAppSetting,
+  migrateAppSettings,
   type AppSettingKey,
 } from './main/appSettings'
 import { buildWindowOptions } from './main/windowOptions'
@@ -150,8 +151,7 @@ function isChatDisabled(): boolean {
 function warmupOllama(): void {
   if (process.env.NODE_ENV === 'test') return
   if (isChatDisabled()) return
-  // The warmup path stays on the plain (no-tools) request so a misbehaving
-  // model can't bring up tool-call plumbing at boot.
+  if (!readAppSettings(getAppSettingsPath()).showChat) return
   void callOllama(WARMUP_PROMPT, '[ollama warmup]')
 }
 
@@ -417,6 +417,7 @@ ipcMain.handle(
 
 app.whenReady().then(() => {
   if (process.env.NODE_ENV === 'test' && app.dock) app.dock.hide()
+  migrateAppSettings(getAppSettingsPath())
   createWindow()
   warmupOllama()
 })
