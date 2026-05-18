@@ -13,7 +13,7 @@ interface Setup {
 const ALL_TAGS = {
   projects: ['errands', 'personal', 'work'],
   people: ['@lina', '@mike'],
-  resources: ['>read', '>watch'],
+  resources: [':read', ':watch'],
 }
 
 function setupDom(allTags = ALL_TAGS): Setup {

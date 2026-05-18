@@ -58,8 +58,8 @@ describe('Read and Watch resources', () => {
 
   beforeEach(async () => {
     dom = makeDom([
-      makeTask('read-task', 'The Design of Everyday Things', ['>read']),
-      makeTask('watch-task', 'WWDC Session', ['>watch']),
+      makeTask('read-task', 'The Design of Everyday Things', [':read']),
+      makeTask('watch-task', 'WWDC Session', [':watch']),
       makeTask('project-task', 'Some project task', ['work']),
     ])
     ;(globalThis as unknown as { window: unknown }).window = dom.window
@@ -76,16 +76,16 @@ describe('Read and Watch resources', () => {
   it('resources section contains To Read and To Watch entries', () => {
     const section = doc.querySelector('[data-section="resources"]')
     expect(section).to.not.equal(null)
-    const readEntry = section!.querySelector('[data-sidebar-entry=">read"]')
-    const watchEntry = section!.querySelector('[data-sidebar-entry=">watch"]')
-    expect(readEntry, '[data-sidebar-entry=">read"] should be present').to.not.equal(null)
-    expect(watchEntry, '[data-sidebar-entry=">watch"] should be present').to.not.equal(null)
+    const readEntry = section!.querySelector('[data-sidebar-entry=":read"]')
+    const watchEntry = section!.querySelector('[data-sidebar-entry=":watch"]')
+    expect(readEntry, '[data-sidebar-entry=":read"] should be present').to.not.equal(null)
+    expect(watchEntry, '[data-sidebar-entry=":watch"] should be present').to.not.equal(null)
     expect(readEntry!.textContent).to.include('To Read')
     expect(watchEntry!.textContent).to.include('To Watch')
   })
 
   it('clicking To Read sets the main header to To Read', async () => {
-    const readEntry = doc.querySelector('[data-sidebar-entry=">read"]') as HTMLElement
+    const readEntry = doc.querySelector('[data-sidebar-entry=":read"]') as HTMLElement
     expect(readEntry).to.not.equal(null)
     readEntry.click()
     await tick()
@@ -94,7 +94,7 @@ describe('Read and Watch resources', () => {
   })
 
   it('clicking To Watch sets the main header to To Watch', async () => {
-    const watchEntry = doc.querySelector('[data-sidebar-entry=">watch"]') as HTMLElement
+    const watchEntry = doc.querySelector('[data-sidebar-entry=":watch"]') as HTMLElement
     expect(watchEntry).to.not.equal(null)
     watchEntry.click()
     await tick()
@@ -105,30 +105,30 @@ describe('Read and Watch resources', () => {
   it('resource tags do not appear in the PROJECTS section', () => {
     const projectsSection = doc.querySelector('[data-section="projects"]')
     if (projectsSection) {
-      const readInProjects = projectsSection.querySelector('[data-sidebar-entry=">read"]')
-      const watchInProjects = projectsSection.querySelector('[data-sidebar-entry=">watch"]')
-      expect(readInProjects, '>read should not be in PROJECTS section').to.equal(null)
-      expect(watchInProjects, '>watch should not be in PROJECTS section').to.equal(null)
+      const readInProjects = projectsSection.querySelector('[data-sidebar-entry=":read"]')
+      const watchInProjects = projectsSection.querySelector('[data-sidebar-entry=":watch"]')
+      expect(readInProjects, ':read should not be in PROJECTS section').to.equal(null)
+      expect(watchInProjects, ':watch should not be in PROJECTS section').to.equal(null)
     }
     // If the projects section doesn't exist, the test passes (no > tags leaked in)
   })
 
-  it('filterLabel returns To Read for the >read tag filter', async () => {
+  it('filterLabel returns To Read for the :read tag filter', async () => {
     const input = doc.querySelector(
       '[data-command-bar] input[type="text"]'
     ) as HTMLInputElement
-    fireInput(dom, input, '/goto >read')
+    fireInput(dom, input, '/goto :read')
     pressEnter(dom, input)
     await tick()
     const h1 = doc.querySelector('[data-main-header] h1')
     expect(h1?.textContent?.trim()).to.equal('To Read')
   })
 
-  it('filterLabel returns To Watch for the >watch tag filter', async () => {
+  it('filterLabel returns To Watch for the :watch tag filter', async () => {
     const input = doc.querySelector(
       '[data-command-bar] input[type="text"]'
     ) as HTMLInputElement
-    fireInput(dom, input, '/goto >watch')
+    fireInput(dom, input, '/goto :watch')
     pressEnter(dom, input)
     await tick()
     const h1 = doc.querySelector('[data-main-header] h1')

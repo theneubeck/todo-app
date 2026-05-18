@@ -13,8 +13,8 @@ When('the user clicks sidebar entry {string}', function (this: TodozWorld, value
 Then('the sidebar has a resources section', function (this: TodozWorld) {
   const section = this.document.querySelector('[data-section="resources"]')
   expect(section, '[data-section="resources"] should be present').to.not.equal(null)
-  const readEntry = section!.querySelector('[data-sidebar-entry=">read"]')
-  const watchEntry = section!.querySelector('[data-sidebar-entry=">watch"]')
-  expect(readEntry, '[data-sidebar-entry=">read"] inside resources section').to.not.equal(null)
-  expect(watchEntry, '[data-sidebar-entry=">watch"] inside resources section').to.not.equal(null)
+  const readEntry = section!.querySelector('[data-sidebar-entry=":read"]')
+  const watchEntry = section!.querySelector('[data-sidebar-entry=":watch"]')
+  expect(readEntry, '[data-sidebar-entry=":read"] inside resources section').to.not.equal(null)
+  expect(watchEntry, '[data-sidebar-entry=":watch"] inside resources section').to.not.equal(null)
 })

@@ -35,7 +35,7 @@ export function parseAddCommand(input: string): AddCommand | null {
     } else if (token.startsWith('@')) {
       const handle = token.slice(1).toLowerCase()
       if (handle.length > 0) tags.push(`@${handle}`)
-    } else if (token.startsWith('>')) {
+    } else if (token.startsWith(':')) {
       const resource = token.toLowerCase()
       if (resource.length > 1) tags.push(resource)
     } else {

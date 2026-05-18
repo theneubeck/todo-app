@@ -130,8 +130,8 @@ function filterMatchesTask(filter: Filter, task: Task): boolean {
 
 function filterLabel(filter: Filter): string {
   if (filter.kind === 'inbox') return 'Inbox'
-  if (filter.value === '>read') return 'To Read'
-  if (filter.value === '>watch') return 'To Watch'
+  if (filter.value === ':read') return 'To Read'
+  if (filter.value === ':watch') return 'To Watch'
   if (filter.value.startsWith('@')) return filter.value
   return `#${filter.value}`
 }
@@ -205,14 +205,14 @@ function uniqueTags(tasks: Task[]): { projects: string[]; people: string[]; reso
     for (const raw of t.tags) {
       const tag = String(raw)
       if (tag.startsWith('@')) people.add(tag.toLowerCase())
-      else if (tag.startsWith('>')) { /* resource tags never go into projects */ }
+      else if (tag.startsWith(':')) { /* resource tags never go into projects */ }
       else projects.add(tag.toLowerCase())
     }
   }
   return {
     projects: Array.from(projects).sort(),
     people: Array.from(people).sort(),
-    resources: ['>read', '>watch'],
+    resources: [':read', ':watch'],
   }
 }
 
@@ -280,10 +280,10 @@ function renderSidebar(
     el(doc, 'h3', { 'data-section-header': '' }, 'RESOURCES')
   )
   resourcesSection.appendChild(
-    renderTagEntry(doc, '>read', 'To Read', 'bookmark', activeKey === '>read')
+    renderTagEntry(doc, ':read', 'To Read', 'bookmark', activeKey === ':read')
   )
   resourcesSection.appendChild(
-    renderTagEntry(doc, '>watch', 'To Watch', 'play_circle', activeKey === '>watch')
+    renderTagEntry(doc, ':watch', 'To Watch', 'play_circle', activeKey === ':watch')
   )
   aside.appendChild(resourcesSection)
 

@@ -1,7 +1,7 @@
 // Verify script for the `read-watch` feature.
 //
 // Boots Electron with NODE_ENV=test (window visible via production) and a
-// tmp vault that contains tasks tagged ">read" and ">watch". Walks through
+// tmp vault that contains tasks tagged ":read" and ":watch". Walks through
 // three scenarios and captures a screenshot at each:
 //   1. tmp/readWatch-sidebar.png  — sidebar shows RESOURCES section with both entries
 //   2. tmp/readWatch-filter.png   — clicking To Read filters the main view
@@ -36,12 +36,12 @@ const FIXTURES: Fixture[] = [
   {
     filename: 'design-of-everyday-things-2026-05-17.md',
     title: 'The Design of Everyday Things',
-    tags: ['>read'],
+    tags: [':read'],
   },
   {
     filename: 'wwdc-session-2026-05-17.md',
     title: 'Watch WWDC Session',
-    tags: ['>watch'],
+    tags: [':watch'],
   },
   {
     filename: 'errands-task-2026-05-17.md',
@@ -51,10 +51,9 @@ const FIXTURES: Fixture[] = [
 ]
 
 function fixtureContent(fx: Fixture): string {
-  // Resource tags (">read", ">watch") must be YAML-quoted — the ">" character
-  // starts a YAML block scalar indicator. Other tags are plain identifiers.
+  // Resource tags (":read", ":watch") use the ":" prefix. Other tags are plain identifiers.
   const tagsLine = `[${fx.tags
-    .map((t) => (t.startsWith('>') || t.startsWith('@') ? `"${t}"` : t))
+    .map((t) => (t.startsWith(':') || t.startsWith('@') ? `"${t}"` : t))
     .join(', ')}]`
   return [
     '---',
@@ -125,29 +124,29 @@ async function run(): Promise<void> {
     )
 
     const readEntry = await window
-      .locator('[data-sidebar-entry=">read"]')
+      .locator('[data-sidebar-entry=":read"]')
       .count()
     record(
-      'RW1: [data-sidebar-entry=">read"] is present',
+      'RW1: [data-sidebar-entry=":read"] is present',
       readEntry === 1,
       `count = ${readEntry}`
     )
 
     const watchEntry = await window
-      .locator('[data-sidebar-entry=">watch"]')
+      .locator('[data-sidebar-entry=":watch"]')
       .count()
     record(
-      'RW1: [data-sidebar-entry=">watch"] is present',
+      'RW1: [data-sidebar-entry=":watch"] is present',
       watchEntry === 1,
       `count = ${watchEntry}`
     )
 
-    // Confirm >read is NOT in the projects section
+    // Confirm :read is NOT in the projects section
     const projectsReadCount = await window
-      .locator('[data-section="projects"] [data-sidebar-entry=">read"]')
+      .locator('[data-section="projects"] [data-sidebar-entry=":read"]')
       .count()
     record(
-      'RW1: >read does NOT appear in PROJECTS section',
+      'RW1: :read does NOT appear in PROJECTS section',
       projectsReadCount === 0,
       `count in projects = ${projectsReadCount}`
     )
@@ -157,7 +156,7 @@ async function run(): Promise<void> {
     console.log(`Screenshot captured at ${shotSidebar}`)
 
     // ---- Screenshot 2: click To Read filters the view ----
-    await window.locator('[data-sidebar-entry=">read"]').click()
+    await window.locator('[data-sidebar-entry=":read"]').click()
     await window.waitForTimeout(200)
     const headerText = await window
       .locator('[data-main-header] h1')
@@ -172,10 +171,10 @@ async function run(): Promise<void> {
     await window.screenshot({ path: shotFilter, fullPage: true })
     console.log(`Screenshot captured at ${shotFilter}`)
 
-    // ---- Screenshot 3: typing ">" opens autocomplete with resource suggestions ----
+    // ---- Screenshot 3: typing ":" opens autocomplete with resource suggestions ----
     const inputSelector = '[data-command-bar] input[type="text"]'
     await window.click(inputSelector)
-    await window.fill(inputSelector, '>')
+    await window.fill(inputSelector, ':')
     await window.waitForSelector('[data-autocomplete]', {
       state: 'attached',
       timeout: 5_000,
@@ -184,13 +183,13 @@ async function run(): Promise<void> {
       .locator('[data-autocomplete-suggestion] [data-autocomplete-label]')
       .allTextContents()
     record(
-      'RW4: ">" opens autocomplete showing >read',
-      autocompleteLabels.includes('>read'),
+      'RW4: ":" opens autocomplete showing :read',
+      autocompleteLabels.includes(':read'),
       `labels = ${JSON.stringify(autocompleteLabels)}`
     )
     record(
-      'RW4: ">" opens autocomplete showing >watch',
-      autocompleteLabels.includes('>watch'),
+      'RW4: ":" opens autocomplete showing :watch',
+      autocompleteLabels.includes(':watch'),
       `labels = ${JSON.stringify(autocompleteLabels)}`
     )
 

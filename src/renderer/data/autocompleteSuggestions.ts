@@ -47,7 +47,7 @@ export function getTriggerWord(
   if (start === end) return null
   const prefix = value.slice(start, end)
   const first = prefix.charAt(0)
-  if (first !== '#' && first !== '@' && first !== '>') return null
+  if (first !== '#' && first !== '@' && first !== ':') return null
   return { prefix, start, end }
 }
 
@@ -68,8 +68,8 @@ export function getSuggestions(
     pool = allTags.projects
     toLabel = (tag) => `#${tag}`
     toInsert = (tag) => `#${tag}`
-  } else if (sigil === '>') {
-    // Resource tags are stored with the leading ">" prefix (e.g., ">read").
+  } else if (sigil === ':') {
+    // Resource tags are stored with the leading ":" prefix (e.g., ":read").
     pool = allTags.resources
     toLabel = (tag) => tag
     toInsert = (tag) => tag

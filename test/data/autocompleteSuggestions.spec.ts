@@ -51,7 +51,7 @@ describe('getSuggestions', () => {
   const allTags = {
     projects: ['errands', 'personal', 'work'],
     people: ['@lina', '@mike'],
-    resources: ['>read', '>watch'],
+    resources: [':read', ':watch'],
   }
 
   it("returns all # tags when prefix is just '#'", () => {
@@ -96,14 +96,14 @@ describe('getSuggestions', () => {
     expect(r).to.deep.equal([])
   })
 
-  it('returns >read and >watch suggestions for a > trigger word', () => {
-    const r = getSuggestions('>', 1, allTags)
-    expect(r.map((s) => s.label)).to.deep.equal(['>read', '>watch'])
+  it('returns :read and :watch suggestions for a : trigger word', () => {
+    const r = getSuggestions(':', 1, allTags)
+    expect(r.map((s) => s.label)).to.deep.equal([':read', ':watch'])
   })
 
-  it('filters resource suggestions by query after >', () => {
-    const r = getSuggestions('>r', 2, allTags)
-    expect(r.map((s) => s.label)).to.deep.equal(['>read'])
+  it('filters resource suggestions by query after :', () => {
+    const r = getSuggestions(':r', 2, allTags)
+    expect(r.map((s) => s.label)).to.deep.equal([':read'])
   })
 })
 
@@ -138,7 +138,7 @@ describe('getGotoSuggestions', () => {
   const allTags = {
     projects: ['errands', 'personal', 'work'],
     people: ['@lina', '@mike'],
-    resources: ['>read', '>watch'],
+    resources: [':read', ':watch'],
   }
 
   it('returns empty array when value does not start with /goto ', () => {
@@ -149,7 +149,7 @@ describe('getGotoSuggestions', () => {
   it('returns all tags alphabetically when query is empty', () => {
     const r = getGotoSuggestions('/goto ', allTags)
     const labels = r.map((s) => s.label)
-    expect(labels).to.deep.equal(['#errands', '#personal', '#work', '>read', '>watch', '@lina', '@mike'])
+    expect(labels).to.deep.equal(['#errands', '#personal', '#work', ':read', ':watch', '@lina', '@mike'])
   })
 
   it('returns project tags prefixed with # and people tags with @', () => {
@@ -182,11 +182,11 @@ describe('getGotoSuggestions', () => {
     expect(r.length).to.equal(8)
   })
 
-  it('includes >read and >watch in the /goto suggestion pool', () => {
+  it('includes :read and :watch in the /goto suggestion pool', () => {
     const r = getGotoSuggestions('/goto ', allTags)
     const labels = r.map((s) => s.label)
-    expect(labels).to.include('>read')
-    expect(labels).to.include('>watch')
+    expect(labels).to.include(':read')
+    expect(labels).to.include(':watch')
   })
 })
 
