@@ -2,6 +2,8 @@ import { describe, it, beforeEach } from 'mocha'
 import { expect } from 'chai'
 import { JSDOM } from 'jsdom'
 import { mountAutocompleteDropdown } from '../../src/renderer/views/AutocompleteDropdown'
+import { mountApp } from '../../src/renderer/index'
+import type { Task } from '../../src/renderer/data/parseTodo'
 
 interface Setup {
   dom: JSDOM
@@ -218,5 +220,47 @@ describe('Autocomplete dropdown — goto mode', () => {
     pressKey(s.dom, s.input, 'Tab')
     expect(s.inserts.length).to.equal(1)
     expect(s.inserts[0].value).to.equal('/goto #errands ')
+  })
+})
+
+describe('Autocomplete via full app mount', () => {
+  it('updates the command bar input when Tab accepts a suggestion', async () => {
+    const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>')
+    const task: Task = {
+      slug: 'buy-milk',
+      filePath: '/vault/todos/buy-milk-2026-05-18.md',
+      title: 'Buy milk',
+      status: 'todo',
+      tags: ['errands'],
+      created: '2026-05-18',
+      raw: '---\ntype: task\ntitle: "Buy milk"\nstatus: todo\ntags: [errands]\ncreated: 2026-05-18\n---\n',
+      subtasks: [],
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(dom.window as any).todoz = {
+      today: '2026-05-18',
+      readTodos: async () => [task],
+      writeFile: async () => {},
+      runOllama: async () => '',
+      readToday: async () => [],
+      writeToday: async () => {},
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(globalThis as any).window = dom.window
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(globalThis as any).document = dom.window.document
+    await mountApp(dom.window.document.body)
+    const input = dom.window.document.querySelector(
+      '[data-command-bar] input[type="text"]'
+    ) as HTMLInputElement
+    // Type a # prefix to open the autocomplete dropdown
+    input.value = '#e'
+    input.setSelectionRange(2, 2)
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+    // Press Tab to accept the first suggestion (#errands)
+    input.dispatchEvent(
+      new dom.window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    )
+    expect(input.value).to.equal('#errands ')
   })
 })

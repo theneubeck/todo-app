@@ -432,6 +432,25 @@ describe('TaskRowInteractions', () => {
     expect(labels).to.not.include('draft section 1')
   })
 
+  it('dismisses the confirm without writing when a subtask remove No is clicked', async () => {
+    await mountApp(dom.window.document.body)
+    const row = findRow(dom.window.document, 'prep-deck')
+    const taskRow = row.querySelector('[data-task-row]') as HTMLElement
+    taskRow.click() // expand
+    const subtask = row.querySelector(
+      '[data-subtask-list] [data-subtask="0"]'
+    ) as HTMLElement
+    const remove = subtask.querySelector('[data-remove]') as HTMLElement
+    remove.click()
+    const no = dom.window.document.querySelector(
+      '[data-confirm] [data-confirm-no]'
+    ) as HTMLElement
+    no.click()
+    await tick(10)
+    expect(todoz.__writes.length).to.equal(0)
+    expect(dom.window.document.querySelector('[data-confirm]')).to.equal(null)
+  })
+
   it('does not call archiveFile when a subtask remove is confirmed', async () => {
     await mountApp(dom.window.document.body)
     const row = findRow(dom.window.document, 'prep-deck')

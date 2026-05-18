@@ -198,11 +198,17 @@ When(
 When('the user toggles the parent checkbox', async function (
   this: VaultWriteWorld
 ) {
-  const checkbox = this.document.querySelector(
-    '[data-task] [data-checkbox-wrapper] input[type="checkbox"]'
-  ) as HTMLInputElement
+  // Check both regular task rows and today rows so the step works in any view.
+  const checkbox = (
+    this.document.querySelector(
+      '[data-task] [data-checkbox-wrapper] input[type="checkbox"]'
+    ) ??
+    this.document.querySelector(
+      '[data-today-row] [data-checkbox-wrapper] input[type="checkbox"]'
+    )
+  ) as HTMLInputElement | null
   expect(checkbox, 'parent checkbox').to.not.equal(null)
-  checkbox.click()
+  checkbox!.click()
   await tick(10)
 })
 

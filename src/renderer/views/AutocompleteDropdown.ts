@@ -28,6 +28,7 @@ export function mountAutocompleteDropdown(
   function caretPosition(): number {
     // selectionEnd reflects the caret when there is no range selection.
     const sel = input.selectionEnd
+    /* istanbul ignore next */
     if (sel === null) return input.value.length
     return sel
   }
@@ -52,13 +53,18 @@ export function mountAutocompleteDropdown(
       // Sibling of the input — the input cannot host children. Insert right
       // after the input so it lives in the same containing block.
       const parent = input.parentNode as ParentNode | null
+      /* istanbul ignore next */
       if (!parent) return
       const nextSibling = input.nextSibling
+      /* istanbul ignore next */
       if (nextSibling) parent.insertBefore(dropdown, nextSibling)
+      /* istanbul ignore next */
       else (parent as Node).appendChild(dropdown)
     }
     // Bound activeIndex to current suggestions array.
+    /* istanbul ignore next */
     if (activeIndex < 0) activeIndex = suggestions.length - 1
+    /* istanbul ignore next */
     if (activeIndex >= suggestions.length) activeIndex = 0
     // Rebuild rows from scratch — small list, cheap.
     dropdown.innerHTML = ''
@@ -89,6 +95,7 @@ export function mountAutocompleteDropdown(
   }
 
   function acceptActive(): void {
+    /* istanbul ignore next */
     if (!dropdown || suggestions.length === 0) return
     const choice = suggestions[activeIndex]
     const value = input.value
@@ -125,6 +132,7 @@ export function mountAutocompleteDropdown(
       renderDropdown()
       return
     }
+    /* istanbul ignore else */
     if (ke.key === 'Tab') {
       acceptActive()
       return

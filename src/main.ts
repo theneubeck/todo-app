@@ -32,6 +32,7 @@ import {
   executeAddTask,
   parseToolCall,
 } from './main/ollamaTools'
+import { readTodayFile, writeTodayFile } from './main/todayFile'
 
 let activeVaultPath: string | null = null
 
@@ -73,6 +74,22 @@ ipcMain.handle('read-todos', (): Task[] => {
       const raw = fs.readFileSync(filePath, 'utf-8')
       return parseTodo(raw, f, filePath)
     })
+    // Exclude today.md (type: today) from the regular task list.
+    .filter((t) => !/^\s*type:\s*today\s*$/m.test(t.raw))
+})
+
+ipcMain.handle('read-today', (): string[] => {
+  const vault = resolveActiveVault()
+  if (!vault) return []
+  const dir = path.join(vault, 'todos')
+  return readTodayFile(dir)
+})
+
+ipcMain.handle('write-today', (_e, slugs: string[]): void => {
+  const vault = resolveActiveVault()
+  if (!vault) return
+  const dir = path.join(vault, 'todos')
+  writeTodayFile(dir, slugs, todayIso())
 })
 
 ipcMain.handle('write-file', (_e, filePath: string, content: string): void => {

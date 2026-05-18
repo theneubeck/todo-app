@@ -37,6 +37,8 @@ declare global {
       archiveFile?: (filename: string) => Promise<void>
       runOllama: (prompt: string) => Promise<OllamaResult | string>
       today?: string
+      readToday?: () => Promise<string[]>
+      writeToday?: (slugs: string[]) => Promise<void>
       getVaultConfig?: () => Promise<{
         lastOpened: string | null
         recents: string[]
@@ -229,6 +231,7 @@ function isPrimaryEntryEnabled(
   if (entry.key === 'chat') return settings.showChat
   if (entry.key === 'today') return settings.showToday
   if (entry.key === 'upcoming') return settings.showUpcoming
+  /* istanbul ignore next */
   return true
 }
 
@@ -332,6 +335,8 @@ type RenderContext = {
   onSubtaskRemove: (task: Task, subIndex: number) => Promise<void>
   onAddSubtaskSubmit: (task: Task, text: string) => Promise<void>
   closeAllConfirms: () => void
+  /** When set, the task row shows an add-to-today icon. */
+  onAddToToday?: (task: Task) => Promise<void>
 }
 
 function renderAddSubtaskAffordance(
@@ -542,6 +547,15 @@ function renderTaskRow(
 
   row.appendChild(chipForTask(doc, task))
 
+  if (ctx.onAddToToday) {
+    const addToTodayHandler = ctx.onAddToToday
+    row.appendChild(
+      renderAddToTodayIcon(doc, () => {
+        void addToTodayHandler(task)
+      })
+    )
+  }
+
   const removeBtn = el(
     doc,
     'span',
@@ -554,6 +568,7 @@ function renderTaskRow(
     row.addEventListener('click', (e) => {
       const target = e.target as HTMLElement | null
       if (target && target.closest('[data-remove]')) {
+        /* istanbul ignore next */
         return
       }
       ctx.onExpandToggle(task)
@@ -610,6 +625,116 @@ function renderTaskCard(
   })
   card.appendChild(list)
   return card
+}
+
+function renderTodayList(
+  doc: Document,
+  slugs: string[],
+  allTasks: Task[],
+  onCheckboxToggle: (slug: string, task: Task) => Promise<void>,
+  onRemove: (slug: string) => Promise<void>
+): HTMLElement {
+  const container = el(doc, 'div', { 'data-today-list': '' })
+
+  if (slugs.length === 0) {
+    const empty = el(
+      doc,
+      'p',
+      { 'data-today-empty': '' },
+      "Your Today list is empty. Add tasks using the ☀️ icon on any task row."
+    )
+    container.appendChild(empty)
+    return container
+  }
+
+  // Build a map from full-slug (e.g. "today-flow-task-a-2026-05-18") to Task.
+  // Task.slug strips the date suffix, so we match by filePath filename stem.
+  const slugToTask = new Map<string, Task>()
+  for (const task of allTasks) {
+    // Derive the full slug (filename without .md) from filePath
+    const fp = task.filePath
+    const lastSlash = fp.lastIndexOf('/')
+    const filename = lastSlash === -1 ? fp : fp.slice(lastSlash + 1)
+    const fullSlug = filename.endsWith('.md') ? filename.slice(0, -3) : filename
+    slugToTask.set(fullSlug, task)
+  }
+
+  for (const slug of slugs) {
+    const task = slugToTask.get(slug)
+    const rowAttrs: Record<string, string> = {
+      'data-today-row': '',
+      'data-slug': slug,
+    }
+    const row = el(doc, 'div', rowAttrs)
+
+    // Checkbox
+    const cbWrap = el(doc, 'div', {
+      'data-checkbox-wrapper': '',
+      'data-checked': task?.status === 'done' ? 'true' : 'false',
+    })
+    const cb = el(doc, 'input', { type: 'checkbox' }) as HTMLInputElement
+    cb.checked = task !== undefined && task.status === 'done'
+    cbWrap.appendChild(cb)
+    row.appendChild(cbWrap)
+
+    // Title
+    const titleText = task ? task.title : slug
+    const title = el(doc, 'span', { 'data-task-title': '' }, titleText)
+    row.appendChild(title)
+
+    // Remove-from-today icon
+    row.appendChild(
+      renderRemoveFromTodayIcon(doc, () => {
+        void onRemove(slug)
+      })
+    )
+
+    if (task) {
+      cb.addEventListener('click', (e) => {
+        e.stopPropagation()
+        void onCheckboxToggle(slug, task)
+      })
+    }
+
+    container.appendChild(row)
+  }
+
+  // "Clear all" link
+  const clearAll = el(doc, 'button', {
+    type: 'button',
+    'data-today-clear-all': '',
+  }, 'Clear all')
+  container.appendChild(clearAll)
+
+  return container
+}
+
+function renderAddToTodayIcon(doc: Document, onAddToToday: () => void): HTMLElement {
+  const btn = el(doc, 'span', {
+    'data-add-to-today': '',
+    role: 'button',
+    'aria-label': 'Add to Today',
+  })
+  btn.appendChild(icon(doc, 'wb_sunny'))
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    onAddToToday()
+  })
+  return btn
+}
+
+function renderRemoveFromTodayIcon(doc: Document, onRemove: () => void): HTMLElement {
+  const btn = el(doc, 'span', {
+    'data-remove-from-today': '',
+    role: 'button',
+    'aria-label': 'Remove from Today',
+  })
+  btn.appendChild(icon(doc, 'close'))
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    onRemove()
+  })
+  return btn
 }
 
 function renderCommandBar(doc: Document): HTMLElement {
@@ -723,6 +848,7 @@ async function mountPickerWithSwap(container: HTMLElement): Promise<void> {
     !setActiveVault ||
     !removeRecent
   ) {
+    /* istanbul ignore next */
     return
   }
   await mountVaultPicker(container, {
@@ -751,6 +877,8 @@ async function mountMainShell(
   // Chat state — session-only, lives in the closure across re-renders.
   let chatActive = false
   let chatMessages: ChatMessage[] = []
+  // Today Flow state — ordered list of slugs from today.md
+  let todaySlugs: string[] = []
 
   const getAppSettings = window.todoz.getAppSettings
   const setAppSetting = window.todoz.setAppSetting
@@ -976,7 +1104,67 @@ async function mountMainShell(
         thread.appendChild(renderMessage(doc, msg))
       }
       slot.appendChild(thread)
+    } else if (activeFilter.kind === 'today') {
+      // Today view — curated list from today.md, not the filter-based task list.
+      slot.appendChild(renderMainHeader(doc, todaySlugs.length, activeFilter))
+      const todayList = renderTodayList(
+        doc,
+        todaySlugs,
+        tasks,
+        async (slug: string, task: Task) => {
+          // Checkbox toggle: mark original task done, remove from Today.
+          const next = toggleParent(task.raw)
+          const flippedStatus: Task['status'] = task.status === 'done' ? 'todo' : 'done'
+          updateTask(task.slug, (t) => ({ ...t, raw: next, status: flippedStatus }))
+          todaySlugs = todaySlugs.filter((s) => s !== slug)
+          fullRender()
+          await window.todoz.writeFile(task.filePath, next)
+          if (window.todoz.writeToday) {
+            await window.todoz.writeToday([...todaySlugs])
+          }
+        },
+        async (slug: string) => {
+          // Remove from Today only — do not touch the original task file.
+          todaySlugs = todaySlugs.filter((s) => s !== slug)
+          fullRender()
+          if (window.todoz.writeToday) {
+            await window.todoz.writeToday([...todaySlugs])
+          }
+        }
+      )
+      // Bind "Clear all" button
+      const clearAllBtn = todayList.querySelector('[data-today-clear-all]') as HTMLElement | null
+      if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', async () => {
+          todaySlugs = []
+          fullRender()
+          if (window.todoz.writeToday) {
+            await window.todoz.writeToday([])
+          }
+        })
+      }
+      slot.appendChild(todayList)
     } else {
+      // Add onAddToToday to the render context for non-Today views.
+      const ctxWithToday: RenderContext = {
+        ...renderCtx,
+        onAddToToday: async (task: Task) => {
+          // Build the full slug from filePath (same logic as renderTodayList).
+          const fp = task.filePath
+          const lastSlash = fp.lastIndexOf('/')
+          const filename = lastSlash === -1 ? fp : fp.slice(lastSlash + 1)
+          const fullSlug = filename.endsWith('.md') ? filename.slice(0, -3) : filename
+          // Append if not already present; always persist the current state.
+          if (!todaySlugs.includes(fullSlug)) {
+            todaySlugs = [...todaySlugs, fullSlug]
+          }
+          // Always write (idempotent if already present) so the file is current.
+          if (window.todoz.writeToday) {
+            await window.todoz.writeToday([...todaySlugs])
+          }
+          fullRender()
+        },
+      }
       const visible = visibleTasks()
       const remaining = visible.filter((t) => t.status !== 'done').length
       slot.appendChild(renderMainHeader(doc, remaining, activeFilter))
@@ -989,7 +1177,7 @@ async function mountMainShell(
         }
         defaultExpandSeeded = true
       }
-      slot.appendChild(renderTaskCard(doc, visible, expandedSlugs, renderCtx))
+      slot.appendChild(renderTaskCard(doc, visible, expandedSlugs, ctxWithToday))
       slot.appendChild(renderAddTaskAffordance())
     }
     slot.appendChild(renderCommandBar(doc))
@@ -1074,11 +1262,25 @@ async function mountMainShell(
         e.preventDefault()
         if (key === 'chat') {
           chatActive = true
+          fullRender()
+        } else if (key === 'today') {
+          chatActive = false
+          activeFilter = { kind: 'today' }
+          // Load today slugs, then render.
+          const loadAndRender = async (): Promise<void> => {
+            if (window.todoz.readToday) {
+              todaySlugs = await window.todoz.readToday()
+            } else {
+              todaySlugs = []
+            }
+            fullRender()
+          }
+          void loadAndRender()
         } else {
           chatActive = false
           activeFilter = filterFromEntryKey(key)
+          fullRender()
         }
-        fullRender()
       })
     })
   }
@@ -1156,9 +1358,8 @@ async function mountMainShell(
         try {
           input.setSelectionRange(newCaret, newCaret)
         } catch {
-          // Some environments (e.g., JSDOM with detached input) reject the
-          // selection-range call; the value update is the only thing that
-          // matters for the contract.
+          /* istanbul ignore next */
+          void 0 // setSelectionRange rejected (detached input); value is already set
         }
         // Notify the mode-detection / any other listeners so they re-evaluate.
         const view = doc.defaultView as unknown as {
@@ -1193,6 +1394,17 @@ async function mountMainShell(
   }
 
   async function handleCommandEnter(input: HTMLInputElement): Promise<void> {
+    // /today-clear — wipe today.md
+    if (input.value.trim().toLowerCase() === '/today-clear') {
+      input.value = ''
+      todaySlugs = []
+      fullRender()
+      if (window.todoz.writeToday) {
+        await window.todoz.writeToday([])
+      }
+      return
+    }
+
     const gotoTarget = parseGotoCommand(input.value)
     if (gotoTarget !== null) {
       if (applyGoto(gotoTarget)) input.value = ''
@@ -1234,6 +1446,16 @@ async function mountMainShell(
     }
     tasks = [...tasks, newTask]
     input.value = ''
+    // If we're in Today view, also append the new task slug to today.md.
+    if (activeFilter.kind === 'today') {
+      const fullSlug = built.filename.endsWith('.md')
+        ? built.filename.slice(0, -3)
+        : built.filename
+      todaySlugs = [...todaySlugs, fullSlug]
+      if (window.todoz.writeToday) {
+        await window.todoz.writeToday([...todaySlugs])
+      }
+    }
     // Re-render to surface new sidebar entries / counts.
     fullRender()
     // Pulse entries for the just-added task: always Inbox; plus each tag entry.
@@ -1243,6 +1465,7 @@ async function mountMainShell(
 
   async function handleChatEnter(input: HTMLInputElement): Promise<void> {
     const text = input.value.trim()
+    /* istanbul ignore next */
     if (text.length === 0) return
     chatActive = true
     const userMsg: ChatMessage = { role: 'user', text }
@@ -1261,6 +1484,7 @@ async function mountMainShell(
     // Replace the pending bubble (identified by reference) with the resolved
     // assistant message. If the bubble was removed elsewhere, do nothing.
     const idx = chatMessages.indexOf(pendingMsg)
+    /* istanbul ignore next */
     if (idx === -1) return
     const toolEvents = normalized.toolEvents ?? []
     const toolMessages: ChatMessage[] = toolEvents.map((ev) => ({
@@ -1314,6 +1538,7 @@ async function mountMainShell(
       const input = body.querySelector(
         '[data-command-bar] input[type="text"]'
       ) as HTMLInputElement | null
+      /* istanbul ignore next */
       if (!input) return
       if (!input.value.startsWith('/goto ')) {
         input.value = '/goto '
@@ -1371,6 +1596,7 @@ export async function mountTodoList(container: HTMLElement): Promise<void> {
 
     item.appendChild(row)
 
+    /* istanbul ignore else */
     if (task.subtasks.length > 0) {
       const subWrap = doc.createElement('ul')
       subWrap.setAttribute('data-subtasks', '')

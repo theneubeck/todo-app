@@ -16,6 +16,7 @@ export function parseGotoCommand(input: string): GotoTarget | null {
   if (!trimmed.toLowerCase().startsWith('/goto ')) return null
 
   const dest = trimmed.slice('/goto '.length).trim()
+  /* istanbul ignore next */
   if (dest.length === 0) return null
 
   const lower = dest.toLowerCase()

@@ -23,6 +23,9 @@ contextBridge.exposeInMainWorld('todoz', {
   archiveFile: (filename: string) => ipcRenderer.invoke('archive-file', filename),
   runOllama: (prompt: string): Promise<OllamaResult> =>
     ipcRenderer.invoke('run-ollama', prompt),
+  readToday: (): Promise<string[]> => ipcRenderer.invoke('read-today'),
+  writeToday: (slugs: string[]): Promise<void> =>
+    ipcRenderer.invoke('write-today', slugs),
   getVaultConfig: () => ipcRenderer.invoke('vaultz:getConfig'),
   openFolderPicker: () => ipcRenderer.invoke('vaultz:openFolderPicker'),
   createVault: (vaultPath: string) =>

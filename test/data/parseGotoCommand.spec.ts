@@ -66,4 +66,16 @@ describe('parseGotoCommand', () => {
       value: ':watch',
     })
   })
+
+  it('returns null for /goto with only whitespace after the command', () => {
+    expect(parseGotoCommand('/goto   ')).to.equal(null)
+  })
+
+  it('returns null for /goto # with no slug', () => {
+    expect(parseGotoCommand('/goto #')).to.equal(null)
+  })
+
+  it('returns null for /goto @ with no handle', () => {
+    expect(parseGotoCommand('/goto @')).to.equal(null)
+  })
 })
