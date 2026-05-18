@@ -647,7 +647,7 @@ function renderTodayList(
       doc,
       'p',
       { 'data-today-empty': '' },
-      "Your Today list is empty. Add tasks using the ☀️ icon on any task row."
+      "Your Today list is empty. Add tasks using the today icon on any task row."
     )
     container.appendChild(empty)
     return container
@@ -687,6 +687,11 @@ function renderTodayList(
     const titleText = task ? task.title : slug
     const title = el(doc, 'span', { 'data-task-title': '' }, titleText)
     row.appendChild(title)
+
+    // Tag chip
+    if (task && task.tags.length > 0) {
+      row.appendChild(chipForTask(doc, task))
+    }
 
     // Remove-from-today icon
     row.appendChild(
