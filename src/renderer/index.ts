@@ -52,7 +52,7 @@ declare global {
 }
 
 const DEFAULT_APP_SETTINGS: AppSettings = {
-  showChat: true,
+  showChat: false,
   showToday: true,
   showUpcoming: true,
 }

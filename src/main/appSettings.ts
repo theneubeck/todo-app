@@ -10,7 +10,7 @@ export interface AppSettings {
 export type AppSettingKey = keyof AppSettings
 
 const DEFAULTS: AppSettings = {
-  showChat: true,
+  showChat: false,
   showToday: true,
   showUpcoming: true,
 }

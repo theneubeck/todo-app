@@ -24,7 +24,7 @@ describe('readAppSettings', () => {
   it('returns defaults when the file does not exist', () => {
     const settings = readAppSettings(settingsPath)
     expect(settings).to.deep.equal({
-      showChat: true,
+      showChat: false,
       showToday: true,
       showUpcoming: true,
     })
@@ -48,7 +48,7 @@ describe('readAppSettings', () => {
     fs.writeFileSync(settingsPath, '{not-json', 'utf-8')
     const settings = readAppSettings(settingsPath)
     expect(settings).to.deep.equal({
-      showChat: true,
+      showChat: false,
       showToday: true,
       showUpcoming: true,
     })
@@ -76,7 +76,7 @@ describe('readAppSettings', () => {
     )
     const settings = readAppSettings(settingsPath)
     expect(settings).to.deep.equal({
-      showChat: true,
+      showChat: false,
       showToday: false,
       showUpcoming: false,
     })
@@ -104,7 +104,7 @@ describe('writeAppSetting', () => {
     expect(fs.existsSync(settingsPath)).to.equal(true)
     const settings = readAppSettings(settingsPath)
     expect(settings).to.deep.equal({
-      showChat: true,
+      showChat: false,
       showToday: true,
       showUpcoming: false,
     })

@@ -109,7 +109,7 @@ describe('DesignAndStructure', () => {
     const entries = Array.from(
       dom.window.document.querySelectorAll('[data-sidebar] [data-nav-entry]')
     ).map((el) => el.querySelector('[data-nav-label]')?.textContent?.trim())
-    expect(entries).to.deep.equal(['Chat', 'Inbox', 'Today', 'Upcoming'])
+    expect(entries).to.deep.equal(['Inbox', 'Today', 'Upcoming'])
   })
 
   it('marks the Inbox sidebar entry as active', async () => {
@@ -237,7 +237,7 @@ describe('DesignAndStructure', () => {
   it('shows the Enter-to-send hint on the right of the command bar', async () => {
     await mountApp(dom.window.document.body)
     const hint = dom.window.document.querySelector('[data-command-bar] [data-shortcut-hint]')
-    expect(hint?.textContent?.trim()).to.equal('Enter to send')
+    expect(hint?.textContent?.trim()).to.equal('Enter to run')
   })
 
   it('renders combined task rows with no parent checkbox wrapper', async () => {

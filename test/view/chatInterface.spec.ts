@@ -58,6 +58,12 @@ function setupDom(tasks: Task[] = buildTasks()): { dom: JSDOM; todoz: TodozMock 
     },
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(todoz as any).getAppSettings = async () => ({
+    showChat: true,
+    showToday: true,
+    showUpcoming: true,
+  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(dom.window as any).todoz = todoz
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(globalThis as any).window = dom.window
