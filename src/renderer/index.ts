@@ -301,7 +301,8 @@ function renderSidebar(
 function renderMainHeader(
   doc: Document,
   remaining: number,
-  activeFilter: Filter
+  activeFilter: Filter,
+  onClearAll?: () => void
 ): HTMLElement {
   const header = el(doc, 'div', { 'data-main-header': '' })
   const inner = el(doc, 'div')
@@ -314,6 +315,11 @@ function renderMainHeader(
     `${remaining} task${remaining === 1 ? '' : 's'} remaining`
   )
   inner.appendChild(count)
+  if (onClearAll && remaining > 0) {
+    const clearAll = el(doc, 'button', { type: 'button', 'data-today-clear-all': '' }, 'Clear all')
+    clearAll.addEventListener('click', onClearAll)
+    inner.appendChild(clearAll)
+  }
   header.appendChild(inner)
   return header
 }
@@ -698,13 +704,6 @@ function renderTodayList(
 
     container.appendChild(row)
   }
-
-  // "Clear all" link
-  const clearAll = el(doc, 'button', {
-    type: 'button',
-    'data-today-clear-all': '',
-  }, 'Clear all')
-  container.appendChild(clearAll)
 
   return container
 }
@@ -1106,7 +1105,14 @@ async function mountMainShell(
       slot.appendChild(thread)
     } else if (activeFilter.kind === 'today') {
       // Today view — curated list from today.md, not the filter-based task list.
-      slot.appendChild(renderMainHeader(doc, todaySlugs.length, activeFilter))
+      const clearAll = async () => {
+        todaySlugs = []
+        fullRender()
+        if (window.todoz.writeToday) {
+          await window.todoz.writeToday([])
+        }
+      }
+      slot.appendChild(renderMainHeader(doc, todaySlugs.length, activeFilter, clearAll))
       const todayList = renderTodayList(
         doc,
         todaySlugs,
@@ -1132,17 +1138,6 @@ async function mountMainShell(
           }
         }
       )
-      // Bind "Clear all" button
-      const clearAllBtn = todayList.querySelector('[data-today-clear-all]') as HTMLElement | null
-      if (clearAllBtn) {
-        clearAllBtn.addEventListener('click', async () => {
-          todaySlugs = []
-          fullRender()
-          if (window.todoz.writeToday) {
-            await window.todoz.writeToday([])
-          }
-        })
-      }
       slot.appendChild(todayList)
     } else {
       // Add onAddToToday to the render context for non-Today views.

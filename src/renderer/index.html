@@ -866,6 +866,105 @@
         font-size: 14px;
         color: var(--on-surface);
       }
+      /* Today list */
+      [data-today-list] {
+        display: flex;
+        flex-direction: column;
+      }
+      [data-today-row] {
+        display: flex;
+        align-items: center;
+        padding: 8px 16px;
+        gap: 8px;
+        border-bottom: 1px solid var(--surface-container-highest);
+      }
+      [data-today-row]:last-of-type {
+        border-bottom: none;
+      }
+      [data-today-row]:hover {
+        background: var(--surface-container-low);
+      }
+      [data-today-row] [data-checkbox-wrapper] {
+        position: relative;
+        width: 18px;
+        height: 18px;
+        margin-right: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      [data-today-row] [data-checkbox-wrapper] input[type='checkbox'] {
+        margin: 0;
+        width: 18px;
+        height: 18px;
+        accent-color: var(--primary);
+      }
+      [data-today-row] [data-task-title] {
+        flex: 1;
+        font-size: 14px;
+        color: var(--on-surface);
+      }
+      [data-today-row] [data-remove-from-today] {
+        opacity: 0;
+        cursor: pointer;
+        color: var(--outline);
+        display: inline-flex;
+        align-items: center;
+        padding: 4px;
+        border-radius: 4px;
+        font-size: 18px;
+        flex-shrink: 0;
+      }
+      [data-today-row]:hover [data-remove-from-today] {
+        opacity: 0.6;
+      }
+      [data-today-row] [data-remove-from-today]:hover {
+        opacity: 1;
+        color: var(--on-surface);
+      }
+      [data-today-empty] {
+        color: var(--on-surface-variant);
+        font-size: 14px;
+        padding: 16px 0;
+        margin: 0;
+      }
+      /* Add-to-today icon: hidden by default, revealed on task row hover */
+      [data-add-to-today] {
+        opacity: 0;
+        cursor: pointer;
+        color: var(--on-surface-variant);
+        display: inline-flex;
+        align-items: center;
+        padding: 4px;
+        border-radius: 4px;
+        transition: opacity 100ms;
+        flex-shrink: 0;
+      }
+      [data-task-row]:hover [data-add-to-today],
+      [data-add-to-today]:focus {
+        opacity: 1;
+      }
+      [data-add-to-today]:hover {
+        color: var(--primary);
+      }
+      /* Clear all — thin link under the Today headline */
+      [data-today-clear-all] {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 4px 0 0 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+        color: var(--outline);
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-color: var(--outline-variant);
+        display: inline;
+      }
+      [data-today-clear-all]:hover {
+        color: var(--on-surface);
+      }
     </style>
   </head>
   <body>
