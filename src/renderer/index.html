@@ -423,6 +423,28 @@
       [data-remove]:hover {
         opacity: 1;
       }
+      [data-remove='subtask'] {
+        opacity: 0;
+        display: inline-flex;
+        align-items: center;
+        padding: 2px;
+        margin-left: 4px;
+        border-radius: 3px;
+        color: var(--outline);
+        font-size: inherit;
+        flex-shrink: 0;
+      }
+      [data-remove='subtask'] .material-symbols-outlined {
+        font-size: 16px;
+      }
+      [data-subtask]:hover [data-remove='subtask'] {
+        opacity: 0.5;
+      }
+      [data-remove='subtask']:hover {
+        opacity: 1 !important;
+        color: var(--on-surface);
+        background: var(--surface-container);
+      }
       [data-confirm] {
         display: inline-flex;
         align-items: center;

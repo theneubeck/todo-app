@@ -457,12 +457,8 @@ function renderSubtaskRow(
   const label = el(doc, 'span', labelAttrs, sub.label)
   li.appendChild(label)
 
-  const removeBtn = el(
-    doc,
-    'span',
-    { 'data-remove': '', role: 'button', 'aria-label': 'Remove subtask' },
-    '✕'
-  )
+  const removeBtn = el(doc, 'span', { 'data-remove': 'subtask', role: 'button', 'aria-label': 'Remove subtask' })
+  removeBtn.appendChild(icon(doc, 'close'))
   li.appendChild(removeBtn)
 
   cb.addEventListener('click', async (e) => {
