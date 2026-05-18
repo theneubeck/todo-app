@@ -714,7 +714,7 @@ function renderAddToTodayIcon(doc: Document, onAddToToday: () => void): HTMLElem
     role: 'button',
     'aria-label': 'Add to Today',
   })
-  btn.appendChild(icon(doc, 'wb_sunny'))
+  btn.appendChild(icon(doc, 'today'))
   btn.addEventListener('click', (e) => {
     e.stopPropagation()
     onAddToToday()
@@ -1157,6 +1157,7 @@ async function mountMainShell(
           if (window.todoz.writeToday) {
             await window.todoz.writeToday([...todaySlugs])
           }
+          pulseEntries(['today'])
           fullRender()
         },
       }
