@@ -61,4 +61,25 @@ describe('buildTaskFile', () => {
     const body = content.split(/^---\s*$/m)[2] ?? ''
     expect(body.trim()).to.equal('')
   })
+
+  it('includes due in frontmatter when provided', () => {
+    const { content } = buildTaskFile({
+      title: 'Buy milk',
+      tags: [],
+      today: '2026-05-07',
+      existingFilenames: [],
+      due: '2026-06-15',
+    })
+    expect(content).to.contain('due: 2026-06-15')
+  })
+
+  it('omits due line when not provided', () => {
+    const { content } = buildTaskFile({
+      title: 'Buy milk',
+      tags: [],
+      today: '2026-05-07',
+      existingFilenames: [],
+    })
+    expect(content).to.not.contain('due:')
+  })
 })

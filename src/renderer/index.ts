@@ -124,17 +124,20 @@ function renderTopAppBar(doc: Document): HTMLElement {
 type Filter =
   | { kind: 'inbox' }
   | { kind: 'today' }
+  | { kind: 'upcoming' }
   | { kind: 'tag'; value: string } // value: bare slug for project tags ("errands"); "@mike" for people
 
 function filterMatchesTask(filter: Filter, task: Task, today: string): boolean {
   if (filter.kind === 'inbox') return true
   if (filter.kind === 'today') return task.due !== undefined && task.due <= today
+  if (filter.kind === 'upcoming') return task.due !== undefined && task.status !== 'done'
   return task.tags.includes(filter.value)
 }
 
 function filterLabel(filter: Filter): string {
   if (filter.kind === 'inbox') return 'Inbox'
   if (filter.kind === 'today') return 'Today'
+  if (filter.kind === 'upcoming') return 'Upcoming'
   if (filter.value === ':read') return 'To Read'
   if (filter.value === ':watch') return 'To Watch'
   if (filter.value.startsWith('@')) return filter.value
@@ -144,12 +147,14 @@ function filterLabel(filter: Filter): string {
 function entryKeyForFilter(filter: Filter): string {
   if (filter.kind === 'inbox') return 'inbox'
   if (filter.kind === 'today') return 'today'
+  if (filter.kind === 'upcoming') return 'upcoming'
   return filter.value
 }
 
 function filterFromEntryKey(key: string): Filter {
   if (key === 'inbox') return { kind: 'inbox' }
   if (key === 'today') return { kind: 'today' }
+  if (key === 'upcoming') return { kind: 'upcoming' }
   return { kind: 'tag', value: key }
 }
 
@@ -343,6 +348,8 @@ type RenderContext = {
   closeAllConfirms: () => void
   /** When set, the task row shows an add-to-today icon. */
   onAddToToday?: (task: Task) => Promise<void>
+  /** Updates the task's due date in memory and re-renders. Pass undefined to clear. */
+  onSetDue: (slug: string, due: string | undefined, raw: string) => void
 }
 
 function renderAddSubtaskAffordance(
@@ -385,6 +392,57 @@ function renderAddSubtaskAffordance(
     })
   })
   return span
+}
+
+function removeDueFromRaw(raw: string): string {
+  const lines = raw.split('\n')
+  let openIdx = -1
+  let closeIdx = -1
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === '---') {
+      if (openIdx === -1) openIdx = i
+      else { closeIdx = i; break }
+    }
+  }
+  /* istanbul ignore next */
+  if (openIdx === -1 || closeIdx === -1) return raw
+  const fmLines = lines.slice(openIdx + 1, closeIdx).filter((l) => !/^due:\s*/.test(l))
+  return [...lines.slice(0, openIdx + 1), ...fmLines, ...lines.slice(closeIdx)].join('\n')
+}
+
+function setDueInRaw(raw: string, due: string): string {
+  // Split the raw content into lines and locate the frontmatter block.
+  const lines = raw.split('\n')
+  // Find the opening and closing '---' delimiters.
+  let openIdx = -1
+  let closeIdx = -1
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === '---') {
+      if (openIdx === -1) {
+        openIdx = i
+      } else {
+        closeIdx = i
+        break
+      }
+    }
+  }
+  if (openIdx === -1 || closeIdx === -1) return raw
+
+  const fmLines = lines.slice(openIdx + 1, closeIdx)
+  const dueLineIdx = fmLines.findIndex((l) => /^due:\s*/.test(l))
+  if (dueLineIdx !== -1) {
+    fmLines[dueLineIdx] = `due: ${due}`
+  } else {
+    // Insert after the `status:` line.
+    const statusIdx = fmLines.findIndex((l) => /^status:\s*/.test(l))
+    const insertAt = statusIdx !== -1 ? statusIdx + 1 : fmLines.length
+    fmLines.splice(insertAt, 0, `due: ${due}`)
+  }
+  return [
+    ...lines.slice(0, openIdx + 1),
+    ...fmLines,
+    ...lines.slice(closeIdx),
+  ].join('\n')
 }
 
 function tearDownConfirm(doc: Document): void {
@@ -558,6 +616,53 @@ function renderTaskRow(
     )
   }
 
+  // Calendar icon — set due date affordance
+  const setDueBtn = el(doc, 'span', {
+    'data-set-due': '',
+    role: 'button',
+    'aria-label': 'Set due date',
+  })
+  setDueBtn.appendChild(icon(doc, 'calendar_month'))
+  row.appendChild(setDueBtn)
+
+  setDueBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    // Remove any existing due input in the whole doc first.
+    doc.querySelectorAll('[data-due-input]').forEach((n) => n.remove())
+    const input = el(doc, 'input', {
+      type: 'date',
+      'data-due-input': '',
+    }) as HTMLInputElement
+    if (task.due) input.value = task.due
+    row.appendChild(input)
+    input.focus()
+
+    async function saveDue(): Promise<void> {
+      const due = input.value || undefined
+      input.remove()
+      if (due === task.due) return
+      const updatedRaw = due ? setDueInRaw(task.raw, due) : removeDueFromRaw(task.raw)
+      await window.todoz.writeFile(task.filePath, updatedRaw)
+      ctx.onSetDue(task.slug, due, updatedRaw)
+    }
+
+    // change fires when the native date picker selection is confirmed —
+    // keydown Enter does not fire in that case.
+    input.addEventListener('change', saveDue)
+
+    input.addEventListener('keydown', async (ke) => {
+      if (ke.key === 'Enter') {
+        ke.preventDefault()
+        ke.stopPropagation()
+        await saveDue()
+      } else if (ke.key === 'Escape') {
+        ke.preventDefault()
+        ke.stopPropagation()
+        input.remove()
+      }
+    })
+  })
+
   const removeBtn = el(
     doc,
     'span',
@@ -570,6 +675,10 @@ function renderTaskRow(
     row.addEventListener('click', (e) => {
       const target = e.target as HTMLElement | null
       if (target && target.closest('[data-remove]')) {
+        /* istanbul ignore next */
+        return
+      }
+      if (target && target.closest('[data-set-due]')) {
         /* istanbul ignore next */
         return
       }
@@ -702,6 +811,45 @@ function renderTodayList(
         void onCheckboxToggle(slug, task)
       })
     }
+
+    container.appendChild(row)
+  }
+
+  return container
+}
+
+function renderUpcomingList(doc: Document, tasks: Task[]): HTMLElement {
+  const container = el(doc, 'div', { 'data-upcoming-list': '' })
+
+  // Filter: only incomplete tasks with a due field, sorted ascending
+  const dueTasks = tasks
+    .filter((t) => t.due !== undefined && t.status !== 'done')
+    .sort(compareDue)
+
+  if (dueTasks.length === 0) {
+    const empty = el(doc, 'p', { 'data-upcoming-empty': '' }, 'No upcoming deadlines.')
+    container.appendChild(empty)
+    return container
+  }
+
+  for (const task of dueTasks) {
+    const row = el(doc, 'div', {
+      'data-upcoming-row': '',
+      'data-slug': task.slug,
+    })
+
+    // Line 1: task title
+    const titleSpan = el(doc, 'span', { 'data-task-title': '' }, task.title)
+    row.appendChild(titleSpan)
+
+    // Line 2: due-date row with icon, date, and optional tag chip
+    const dueRow = el(doc, 'div', { 'data-due-row': '' })
+    dueRow.appendChild(icon(doc, 'calendar_month'))
+    dueRow.appendChild(el(doc, 'span', { 'data-due-date': '' }, task.due as string))
+    if (task.tags.length > 0) {
+      dueRow.appendChild(el(doc, 'span', { 'data-tag-chip': '' }, task.tags[0]))
+    }
+    row.appendChild(dueRow)
 
     container.appendChild(row)
   }
@@ -1076,6 +1224,10 @@ async function mountMainShell(
     closeAllConfirms: () => {
       tearDownConfirm(doc)
     },
+    onSetDue: (slug, due, raw) => {
+      updateTask(slug, (t) => ({ ...t, due, raw }))
+      fullRender()
+    },
   }
 
   function fullRender(): void {
@@ -1140,6 +1292,11 @@ async function mountMainShell(
         }
       )
       slot.appendChild(todayList)
+    } else if (activeFilter.kind === 'upcoming') {
+      // Upcoming view — due-dated incomplete tasks sorted ascending.
+      const upcomingTasks = tasks.filter((t) => t.due !== undefined && t.status !== 'done')
+      slot.appendChild(renderMainHeader(doc, upcomingTasks.length, activeFilter))
+      slot.appendChild(renderUpcomingList(doc, tasks))
     } else {
       // Add onAddToToday to the render context for non-Today views.
       const ctxWithToday: RenderContext = {
@@ -1253,8 +1410,6 @@ async function mountMainShell(
     const entries = sidebar.querySelectorAll('[data-sidebar-entry]')
     entries.forEach((entry) => {
       const key = entry.getAttribute('data-sidebar-entry') as string
-      // Upcoming remains inert. Chat activates chat view. Today navigates to today filter.
-      if (key === 'upcoming') return
       entry.addEventListener('click', (e) => {
         e.preventDefault()
         if (key === 'chat') {
@@ -1427,6 +1582,7 @@ async function mountMainShell(
       tags: command.tags,
       today,
       existingFilenames: existing,
+      due: command.due,
     })
     const filePath = dir ? `${dir}/${built.filename}` : built.filename
     await window.todoz.writeFile(filePath, built.content)
@@ -1436,6 +1592,7 @@ async function mountMainShell(
       filePath,
       title: command.title,
       status: 'todo',
+      due: command.due,
       tags: command.tags,
       created: today,
       raw: built.content,

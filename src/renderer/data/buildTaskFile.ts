@@ -17,6 +17,7 @@ export type BuildTaskInput = {
   tags: string[]
   today: string
   existingFilenames: string[]
+  due?: string
 }
 
 export type BuildTaskOutput = {
@@ -51,25 +52,31 @@ function formatTag(tag: string): string {
   return tag
 }
 
-function buildFrontmatter(title: string, tags: string[], today: string): string {
+function buildFrontmatter(title: string, tags: string[], today: string, due?: string): string {
   const tagList = tags.map(formatTag).join(', ')
-  return [
+  const lines = [
     '---',
     'type: task',
     `title: "${title}"`,
     'status: todo',
+  ]
+  if (due) {
+    lines.push(`due: ${due}`)
+  }
+  lines.push(
     `tags: [${tagList}]`,
     `created: ${today}`,
     '---',
     '',
-  ].join('\n')
+  )
+  return lines.join('\n')
 }
 
 export function buildTaskFile(input: BuildTaskInput): BuildTaskOutput {
-  const { title, tags, today, existingFilenames } = input
+  const { title, tags, today, existingFilenames, due } = input
   const slug = slugify(title)
   const base = `${slug}-${today}`
   const filename = uniqueFilename(base, existingFilenames)
-  const content = buildFrontmatter(title, tags, today)
+  const content = buildFrontmatter(title, tags, today, due)
   return { filename, content }
 }

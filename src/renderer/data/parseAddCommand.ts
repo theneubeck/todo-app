@@ -15,9 +15,11 @@
 export type AddCommand = {
   title: string
   tags: string[]
+  due?: string
 }
 
 const ADD_RE = /^\s*\/add(?:\s+(.*))?$/s
+const DUE_TOKEN_RE = /^due:(\d{4}-\d{2}-\d{2})$/i
 
 export function parseAddCommand(input: string): AddCommand | null {
   if (typeof input !== 'string') return null
@@ -28,8 +30,12 @@ export function parseAddCommand(input: string): AddCommand | null {
   const tokens = rest.split(/\s+/).filter((t) => t.length > 0)
   const titleTokens: string[] = []
   const tags: string[] = []
+  let due: string | undefined
   for (const token of tokens) {
-    if (token.startsWith('#')) {
+    const dueMatch = DUE_TOKEN_RE.exec(token)
+    if (dueMatch) {
+      due = dueMatch[1]
+    } else if (token.startsWith('#')) {
       const value = token.slice(1).toLowerCase()
       if (value.length > 0) tags.push(value)
     } else if (token.startsWith('@')) {
@@ -44,5 +50,5 @@ export function parseAddCommand(input: string): AddCommand | null {
   }
   const title = titleTokens.join(' ').trim()
   if (title.length === 0) return null
-  return { title, tags }
+  return { title, tags, due }
 }

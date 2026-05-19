@@ -63,4 +63,18 @@ describe('parseAddCommand', () => {
     expect(result?.title).to.equal('The Design of Everyday Things')
     expect(result?.tags).to.deep.equal([':read'])
   })
+
+  it('parses a due: token into the due field', () => {
+    const result = parseAddCommand('/add finish report due:2026-06-15')
+    expect(result?.title).to.equal('finish report')
+    expect(result?.tags).to.deep.equal([])
+    expect(result?.due).to.equal('2026-06-15')
+  })
+
+  it('ignores a malformed due: token and keeps it in the title', () => {
+    const result = parseAddCommand('/add due:tomorrow task')
+    expect(result?.title).to.equal('due:tomorrow task')
+    expect(result?.tags).to.deep.equal([])
+    expect(result?.due).to.equal(undefined)
+  })
 })
