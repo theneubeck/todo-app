@@ -7,6 +7,12 @@ export interface FixtureTodo {
   body: string
 }
 
+export interface FixtureFocus {
+  id: string
+  name: string
+  tags: string[]
+}
+
 export type ToolEvent = {
   callId: string
   name: string
@@ -39,6 +45,8 @@ export type QueuedOllamaResponse =
 
 export class TodozWorld extends World {
   fixtures: FixtureTodo[] = []
+  focuses: FixtureFocus[] = []
+  capturedFocuses: FixtureFocus[][] = []
   dom?: JSDOM
   lastWriteFilePath?: string
   lastWriteFileContent?: string
@@ -96,6 +104,11 @@ export class TodozWorld extends World {
       },
       archiveFile: async (path: string) => {
         this.lastArchiveFilePath = path
+      },
+      readFocuses: async () => this.focuses,
+      writeFocuses: async (focuses: FixtureFocus[]) => {
+        this.capturedFocuses.push([...focuses])
+        this.focuses = [...focuses]
       },
       runOllama: (): Promise<OllamaResult> => {
         this.ollamaCallCount += 1

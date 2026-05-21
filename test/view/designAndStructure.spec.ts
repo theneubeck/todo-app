@@ -109,7 +109,7 @@ describe('DesignAndStructure', () => {
     const entries = Array.from(
       dom.window.document.querySelectorAll('[data-sidebar] [data-nav-entry]')
     ).map((el) => el.querySelector('[data-nav-label]')?.textContent?.trim())
-    expect(entries).to.deep.equal(['Inbox', 'Today', 'Upcoming'])
+    expect(entries).to.deep.equal(['Inbox', 'Today', 'Upcoming', 'Focus'])
   })
 
   it('marks the Inbox sidebar entry as active', async () => {

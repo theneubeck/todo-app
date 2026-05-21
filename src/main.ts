@@ -378,6 +378,34 @@ ipcMain.handle(
   (_e, prompt: string): Promise<OllamaResult> => runOllamaWithTools(prompt)
 )
 
+// ----- Focuses IPC -----
+
+ipcMain.handle('read-focuses', (): { id: string; name: string; tags: string[] }[] => {
+  const vault = resolveActiveVault()
+  if (!vault) return []
+  const filePath = path.join(vault, 'focuses.json')
+  if (!fs.existsSync(filePath)) return []
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as {
+      id: string
+      name: string
+      tags: string[]
+    }[]
+  } catch {
+    return []
+  }
+})
+
+ipcMain.handle(
+  'write-focuses',
+  (_e, focuses: { id: string; name: string; tags: string[] }[]): void => {
+    const vault = resolveActiveVault()
+    if (!vault) return
+    const filePath = path.join(vault, 'focuses.json')
+    fs.writeFileSync(filePath, JSON.stringify(focuses, null, 2) + '\n', 'utf-8')
+  }
+)
+
 // ----- Vault picker IPC -----
 
 ipcMain.handle(

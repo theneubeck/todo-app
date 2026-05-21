@@ -1,0 +1,4 @@
+[
+  { "id": "focus-work-001", "name": "Work", "tags": ["work", "q2"] },
+  { "id": "focus-personal-001", "name": "Personal", "tags": ["personal", "errands"] }
+]

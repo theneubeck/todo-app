@@ -37,4 +37,8 @@ contextBridge.exposeInMainWorld('todoz', {
   getAppSettings: () => ipcRenderer.invoke('settings:getAll'),
   setAppSetting: (key: string, value: boolean) =>
     ipcRenderer.invoke('settings:set', key, value),
+  readFocuses: (): Promise<{ id: string; name: string; tags: string[] }[]> =>
+    ipcRenderer.invoke('read-focuses'),
+  writeFocuses: (focuses: { id: string; name: string; tags: string[] }[]): Promise<void> =>
+    ipcRenderer.invoke('write-focuses', focuses),
 })

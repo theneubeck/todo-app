@@ -7,6 +7,8 @@ import {
 } from './data/writeTodo'
 import { parseAddCommand } from './data/parseAddCommand'
 import { parseGotoCommand } from './data/parseGotoCommand'
+import { parseFocusCommand } from './data/parseFocusCommand'
+import type { Focus } from './data/parseFocusCommand'
 import { buildTaskFile } from './data/buildTaskFile'
 import { vaultDir } from './data/vaultDir'
 import { mountVaultPicker } from './views/VaultPicker'
@@ -49,6 +51,8 @@ declare global {
       removeRecent?: (vaultPath: string) => Promise<void>
       getAppSettings?: () => Promise<AppSettings>
       setAppSetting?: (key: AppSettingKey, value: boolean) => Promise<void>
+      readFocuses?: () => Promise<Focus[]>
+      writeFocuses?: (focuses: Focus[]) => Promise<void>
     }
   }
 }
@@ -126,18 +130,31 @@ type Filter =
   | { kind: 'today' }
   | { kind: 'upcoming' }
   | { kind: 'tag'; value: string } // value: bare slug for project tags ("errands"); "@mike" for people
+  | { kind: 'focus-board' }
+  | { kind: 'focus'; id: string; tags: string[] }
 
 function filterMatchesTask(filter: Filter, task: Task, today: string): boolean {
   if (filter.kind === 'inbox') return true
   if (filter.kind === 'today') return task.due !== undefined && task.due <= today
   if (filter.kind === 'upcoming') return task.due !== undefined && task.status !== 'done'
+  if (filter.kind === 'focus-board') return false
+  /* istanbul ignore next */
+  if (filter.kind === 'focus') {
+    return filter.tags.some((tag) => task.tags.includes(tag)) && task.status !== 'done'
+  }
   return task.tags.includes(filter.value)
 }
 
-function filterLabel(filter: Filter): string {
+function filterLabel(filter: Filter, focuses: Focus[] = []): string {
   if (filter.kind === 'inbox') return 'Inbox'
   if (filter.kind === 'today') return 'Today'
   if (filter.kind === 'upcoming') return 'Upcoming'
+  if (filter.kind === 'focus-board') return 'Focus'
+  /* istanbul ignore next */
+  if (filter.kind === 'focus') {
+    const found = focuses.find((f) => f.id === filter.id)
+    return found ? found.name : 'Focus'
+  }
   if (filter.value === ':read') return 'To Read'
   if (filter.value === ':watch') return 'To Watch'
   if (filter.value.startsWith('@')) return filter.value
@@ -148,6 +165,8 @@ function entryKeyForFilter(filter: Filter): string {
   if (filter.kind === 'inbox') return 'inbox'
   if (filter.kind === 'today') return 'today'
   if (filter.kind === 'upcoming') return 'upcoming'
+  if (filter.kind === 'focus-board') return 'focus'
+  if (filter.kind === 'focus') return 'focus'
   return filter.value
 }
 
@@ -155,6 +174,7 @@ function filterFromEntryKey(key: string): Filter {
   if (key === 'inbox') return { kind: 'inbox' }
   if (key === 'today') return { kind: 'today' }
   if (key === 'upcoming') return { kind: 'upcoming' }
+  if (key === 'focus') return { kind: 'focus-board' }
   return { kind: 'tag', value: key }
 }
 
@@ -171,6 +191,7 @@ const PRIMARY_ENTRIES: PrimaryEntry[] = [
   { key: 'inbox', label: 'Inbox', icon: 'inbox' },
   { key: 'today', label: 'Today', icon: 'today' },
   { key: 'upcoming', label: 'Upcoming', icon: 'calendar_month' },
+  { key: 'focus', label: 'Focus', icon: 'hub' },
 ]
 
 function renderPrimaryEntry(
@@ -233,6 +254,7 @@ function isPrimaryEntryEnabled(
   settings: AppSettings
 ): boolean {
   if (entry.key === 'inbox') return true
+  if (entry.key === 'focus') return true
   if (entry.key === 'chat') return settings.showChat
   if (entry.key === 'today') return settings.showToday
   if (entry.key === 'upcoming') return settings.showUpcoming
@@ -885,6 +907,132 @@ function renderRemoveFromTodayIcon(doc: Document, onRemove: () => void): HTMLEle
   return btn
 }
 
+function openFocusEditForm(doc: Document, card: HTMLElement, focus: Focus, onSave: (updated: Focus) => void, onCancel: () => void): void {
+  card.innerHTML = ''
+
+  // Wrap everything so any click inside the form stays inside and never reaches
+  // the card's navigation click handler.
+  const form = el(doc, 'div', { 'data-focus-form': '' })
+  form.addEventListener('click', (e) => e.stopPropagation())
+
+  const nameInput = el(doc, 'input', {
+    type: 'text',
+    'data-focus-edit-name': '',
+    placeholder: 'Name',
+  }) as HTMLInputElement
+  nameInput.value = focus.name
+
+  const tagsInput = el(doc, 'input', {
+    type: 'text',
+    'data-focus-edit-tags': '',
+    placeholder: '#tag1 #tag2',
+  }) as HTMLInputElement
+  tagsInput.value = focus.tags.join(' ')
+
+  const saveBtn = el(doc, 'button', { 'data-focus-save': '' }, 'Save')
+  const cancelBtn = el(doc, 'button', { 'data-focus-cancel': '' }, 'Cancel')
+  const actions = el(doc, 'div', { 'data-focus-edit-actions': '' })
+  actions.appendChild(saveBtn)
+  actions.appendChild(cancelBtn)
+
+  form.appendChild(nameInput)
+  form.appendChild(tagsInput)
+  form.appendChild(actions)
+  card.appendChild(form)
+  nameInput.focus()
+
+  function parseAndSave(): void {
+    const name = nameInput.value.trim()
+    if (!name) { onCancel(); return }
+    const tags = tagsInput.value
+      .split(/[\s,]+/)
+      .map((t) => t.replace(/^#/, '').toLowerCase())
+      .filter((t) => t.length > 0)
+    onSave({ ...focus, name, tags })
+  }
+
+  function onKeyDown(e: Event): void {
+    const ke = e as KeyboardEvent
+    if (ke.key === 'Escape') { ke.preventDefault(); onCancel() }
+  }
+
+  nameInput.addEventListener('keydown', onKeyDown)
+  tagsInput.addEventListener('keydown', onKeyDown)
+  saveBtn.addEventListener('click', parseAndSave)
+  cancelBtn.addEventListener('click', onCancel)
+}
+
+function renderFocusBoard(
+  doc: Document,
+  focuses: Focus[],
+  onCardClick: (focus: Focus) => void,
+  onSaveFocus: (updated: Focus) => void,
+  onCancelEdit: () => void
+): HTMLElement {
+  const container = el(doc, 'div', { 'data-focus-board': '' })
+  if (focuses.length === 0) {
+    const empty = el(doc, 'div', { 'data-focus-empty': '' }, 'No focuses yet.')
+    container.appendChild(empty)
+  }
+  for (const focus of focuses) {
+    const card = el(doc, 'div', {
+      'data-focus-card': '',
+      'data-focus-id': focus.id,
+    })
+    const nameEl = el(doc, 'span', { 'data-focus-name': '' }, focus.name)
+    card.appendChild(nameEl)
+    for (const tag of focus.tags) {
+      const tagEl = el(doc, 'span', { 'data-focus-tag': '' }, tag)
+      card.appendChild(tagEl)
+    }
+    // Edit icon — hover-reveal, top-right of card.
+    const editBtn = el(doc, 'span', { 'data-focus-edit': '', role: 'button', 'aria-label': 'Edit focus' })
+    editBtn.appendChild(icon(doc, 'edit'))
+    card.appendChild(editBtn)
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      openFocusEditForm(doc, card, focus, onSaveFocus, onCancelEdit)
+    })
+    card.addEventListener('click', () => onCardClick(focus))
+    container.appendChild(card)
+  }
+  // Create-focus affordance — always shown as a dashed card at the end.
+  const createCard = el(doc, 'div', { 'data-create-focus': '', role: 'button' }, '+ Create focus')
+  createCard.addEventListener('click', () => {
+    const input = doc.querySelector('[data-command-bar] input[type="text"]') as HTMLInputElement | null
+    /* istanbul ignore next */
+    if (!input) return
+    input.value = '/focus '
+    input.dispatchEvent(new doc.defaultView!.Event('input', { bubbles: true }))
+    input.focus()
+  })
+  container.appendChild(createCard)
+  return container
+}
+
+function renderFocusTaskList(
+  doc: Document,
+  tasks: Task[],
+  filter: { kind: 'focus'; id: string; tags: string[] },
+  ctx: RenderContext
+): HTMLElement {
+  const container = el(doc, 'div', { 'data-focus-task-list': '' })
+  const matching = tasks
+    .filter((t) => filter.tags.some((tag) => t.tags.includes(tag)) && t.status !== 'done')
+    .sort(compareDue)
+  if (matching.length === 0) {
+    const empty = el(doc, 'p', { 'data-focus-task-empty': '' }, 'No tasks match this focus.')
+    container.appendChild(empty)
+    return container
+  }
+  const list = el(doc, 'ul', { 'data-task-list': '' })
+  for (const task of matching) {
+    list.appendChild(renderTaskRow(doc, task, false, ctx))
+  }
+  container.appendChild(list)
+  return container
+}
+
 function renderCommandBar(doc: Document): HTMLElement {
   const bar = el(doc, 'div', {
     'data-command-bar': '',
@@ -1019,6 +1167,7 @@ async function mountMainShell(
   container.innerHTML = ''
 
   let tasks = await window.todoz.readTodos()
+  let focuses: Focus[] = window.todoz.readFocuses ? await window.todoz.readFocuses() : []
   let activeFilter: Filter = { kind: 'inbox' }
   const expandedSlugs = new Set<string>()
   let defaultExpandSeeded = false
@@ -1297,6 +1446,30 @@ async function mountMainShell(
       const upcomingTasks = tasks.filter((t) => t.due !== undefined && t.status !== 'done')
       slot.appendChild(renderMainHeader(doc, upcomingTasks.length, activeFilter))
       slot.appendChild(renderUpcomingList(doc, tasks))
+    } else if (activeFilter.kind === 'focus-board') {
+      // Focus board — grid of named focus cards.
+      slot.appendChild(
+        renderFocusBoard(
+          doc,
+          focuses,
+          (focus: Focus) => {
+            activeFilter = { kind: 'focus', id: focus.id, tags: focus.tags }
+            fullRender()
+          },
+          async (updated: Focus) => {
+            focuses = focuses.map((f) => (f.id === updated.id ? updated : f))
+            if (window.todoz.writeFocuses) {
+              try { await window.todoz.writeFocuses(focuses) } catch { /* non-fatal */ }
+            }
+            fullRender()
+          },
+          () => fullRender()
+        )
+      )
+    } else if (activeFilter.kind === 'focus') {
+      // Focus task list — filtered by focus tags.
+      const focusFilter = activeFilter
+      slot.appendChild(renderFocusTaskList(doc, tasks, focusFilter, renderCtx))
     } else {
       // Add onAddToToday to the render context for non-Today views.
       const ctxWithToday: RenderContext = {
@@ -1566,6 +1739,23 @@ async function mountMainShell(
       // Unrecognised /goto destination — preserve input, no navigation.
       return
     }
+
+    // /focus command — create a new focus
+    const focusCmd = parseFocusCommand(input.value)
+    if (focusCmd) {
+      const newFocus: Focus = {
+        id: crypto.randomUUID(),
+        name: focusCmd.name,
+        tags: focusCmd.tags,
+      }
+      focuses = [...focuses, newFocus]
+      if (window.todoz.writeFocuses) await window.todoz.writeFocuses(focuses)
+      input.value = ''
+      activeFilter = { kind: 'focus-board' }
+      fullRender()
+      return
+    }
+
     // Sigil shorthand: "#tag text", "@person text", ":read text" → "/add …"
     const raw = input.value
     const expanded = /^[#@:]/.test(raw) ? `/add ${raw}` : raw
