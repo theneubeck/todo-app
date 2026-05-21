@@ -324,6 +324,61 @@ describe('Focus Board', () => {
       const cards = dom.window.document.querySelectorAll('[data-focus-card]')
       expect(cards.length).to.equal(2)
     })
+
+    it('cancels edit and restores the card when Escape is pressed', async () => {
+      const editBtn = dom.window.document.querySelector('[data-focus-edit]') as HTMLElement
+      editBtn.click()
+      const nameInput = dom.window.document.querySelector('[data-focus-edit-name]') as HTMLInputElement
+      nameInput.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+      await tick(10)
+      const nameInputAfter = dom.window.document.querySelector('[data-focus-edit-name]')
+      expect(nameInputAfter, 'edit form should be gone after Escape').to.equal(null)
+      const cards = dom.window.document.querySelectorAll('[data-focus-card]')
+      expect(cards.length).to.equal(2)
+    })
+  })
+
+  describe('deleting a focus card', () => {
+    let dom: JSDOM
+    let capturedFocuses: Focus[][]
+
+    beforeEach(async () => {
+      const setup = setupDom([TASK_DENTIST, TASK_Q2, TASK_READING], [FOCUS_WORK, FOCUS_PERSONAL])
+      dom = setup.dom
+      capturedFocuses = setup.capturedFocuses
+      await mountApp(dom.window.document.body)
+      await navigateToFocusBoard(dom)
+    })
+
+    it('renders a delete icon on each focus card', () => {
+      const deleteIcons = dom.window.document.querySelectorAll('[data-focus-delete]')
+      expect(deleteIcons.length).to.equal(2)
+    })
+
+    it('removes the card from the board when the delete icon is clicked', async () => {
+      const deleteBtn = dom.window.document.querySelector(
+        '[data-focus-card][data-focus-id="focus-work-001"] [data-focus-delete]'
+      ) as HTMLElement
+      expect(deleteBtn, 'delete button on Work card').to.not.equal(null)
+      deleteBtn.click()
+      await tick(20)
+      const cards = dom.window.document.querySelectorAll('[data-focus-card]')
+      expect(cards.length).to.equal(1)
+      const remaining = cards[0].querySelector('[data-focus-name]')?.textContent?.trim()
+      expect(remaining).to.equal('Personal')
+    })
+
+    it('writes the updated focuses without the deleted entry', async () => {
+      const deleteBtn = dom.window.document.querySelector(
+        '[data-focus-card][data-focus-id="focus-work-001"] [data-focus-delete]'
+      ) as HTMLElement
+      deleteBtn.click()
+      await tick(20)
+      expect(capturedFocuses.length).to.be.greaterThan(0)
+      const saved = capturedFocuses[capturedFocuses.length - 1]
+      expect(saved.some((f) => f.id === 'focus-work-001')).to.equal(false)
+      expect(saved.some((f) => f.id === 'focus-personal-001')).to.equal(true)
+    })
   })
 
   describe('creating a focus via the command bar', () => {

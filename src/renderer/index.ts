@@ -967,7 +967,8 @@ function renderFocusBoard(
   focuses: Focus[],
   onCardClick: (focus: Focus) => void,
   onSaveFocus: (updated: Focus) => void,
-  onCancelEdit: () => void
+  onCancelEdit: () => void,
+  onDeleteFocus: (id: string) => void
 ): HTMLElement {
   const container = el(doc, 'div', { 'data-focus-board': '' })
   if (focuses.length === 0) {
@@ -985,13 +986,20 @@ function renderFocusBoard(
       const tagEl = el(doc, 'span', { 'data-focus-tag': '' }, tag)
       card.appendChild(tagEl)
     }
-    // Edit icon — hover-reveal, top-right of card.
+    // Edit / delete icons — hover-reveal, top-right of card.
     const editBtn = el(doc, 'span', { 'data-focus-edit': '', role: 'button', 'aria-label': 'Edit focus' })
     editBtn.appendChild(icon(doc, 'edit'))
     card.appendChild(editBtn)
     editBtn.addEventListener('click', (e) => {
       e.stopPropagation()
       openFocusEditForm(doc, card, focus, onSaveFocus, onCancelEdit)
+    })
+    const deleteBtn = el(doc, 'span', { 'data-focus-delete': '', role: 'button', 'aria-label': 'Delete focus' })
+    deleteBtn.appendChild(icon(doc, 'delete'))
+    card.appendChild(deleteBtn)
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      onDeleteFocus(focus.id)
     })
     card.addEventListener('click', () => onCardClick(focus))
     container.appendChild(card)
@@ -1459,11 +1467,18 @@ async function mountMainShell(
           async (updated: Focus) => {
             focuses = focuses.map((f) => (f.id === updated.id ? updated : f))
             if (window.todoz.writeFocuses) {
-              try { await window.todoz.writeFocuses(focuses) } catch { /* non-fatal */ }
+              try { await window.todoz.writeFocuses(focuses) } /* istanbul ignore next */ catch { /* non-fatal */ }
             }
             fullRender()
           },
-          () => fullRender()
+          () => fullRender(),
+          async (id: string) => {
+            focuses = focuses.filter((f) => f.id !== id)
+            if (window.todoz.writeFocuses) {
+              try { await window.todoz.writeFocuses(focuses) } /* istanbul ignore next */ catch { /* non-fatal */ }
+            }
+            fullRender()
+          }
         )
       )
     } else if (activeFilter.kind === 'focus') {

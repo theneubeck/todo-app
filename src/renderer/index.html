@@ -1061,10 +1061,10 @@
         background: var(--surface-container);
         border-color: var(--outline);
       }
-      [data-focus-edit] {
+      [data-focus-edit],
+      [data-focus-delete] {
         position: absolute;
         top: 8px;
-        right: 8px;
         opacity: 0;
         display: inline-flex;
         padding: 2px;
@@ -1072,9 +1072,14 @@
         color: var(--outline);
         cursor: pointer;
       }
-      [data-focus-edit] .material-symbols-outlined { font-size: 16px; }
-      [data-focus-card]:hover [data-focus-edit] { opacity: 0.5; }
+      [data-focus-edit] { right: 8px; }
+      [data-focus-delete] { right: 32px; }
+      [data-focus-edit] .material-symbols-outlined,
+      [data-focus-delete] .material-symbols-outlined { font-size: 16px; }
+      [data-focus-card]:hover [data-focus-edit],
+      [data-focus-card]:hover [data-focus-delete] { opacity: 0.5; }
       [data-focus-edit]:hover { opacity: 1; color: var(--on-surface); background: var(--surface-container); }
+      [data-focus-delete]:hover { opacity: 1; color: var(--error); background: var(--surface-container); }
       [data-focus-form] {
         display: flex;
         flex-direction: column;
